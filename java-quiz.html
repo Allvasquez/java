@@ -311,1966 +311,276 @@ const QUESTIONS_17 = [{"topic":"Java Fundamentals & Data Types","difficulty":"Me
 
 const QUESTIONS_21 = [
   {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la forma correcta de crear un Virtual Thread en Java 21?",
-    "code": null,
-    "options": {
-      "A": "Thread t = new Thread(() -> System.out.println(\"Virtual!\"), Thread.VIRTUAL);",
-      "B": "Thread t = Thread.ofVirtual().start(() -> System.out.println(\"Virtual!\"));",
-      "C": "Thread t = Executors.newVirtualThread(() -> System.out.println(\"Virtual!\"));",
-      "D": "Thread t = new VirtualThread(() -> System.out.println(\"Virtual!\"));"
-    },
-    "correct": "B",
-    "explanation": "En Java 21, los Virtual Threads se crean con Thread.ofVirtual().start(Runnable) o Thread.ofVirtual().unstarted(Runnable). También existe Thread.startVirtualThread(Runnable). La opción A no compila, C y D no existen.",
-    "trap": "Thread.ofVirtual() retorna un Thread.Builder, no un Thread directamente. Puedes encadenar .start() para iniciarlo inmediatamente o .unstarted() para iniciarlo después."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál de las siguientes afirmaciones sobre Virtual Threads en Java 21 es CORRECTA?",
-    "code": null,
-    "options": {
-      "A": "Los Virtual Threads son más rápidos que los Platform Threads para tareas de CPU intensiva",
-      "B": "Los Virtual Threads son montados sobre Platform Threads (carrier threads) y se desmontan en operaciones bloqueantes",
-      "C": "Un Virtual Thread siempre corresponde a un hilo del sistema operativo dedicado",
-      "D": "Los Virtual Threads no pueden usar synchronized ni locks"
-    },
-    "correct": "B",
-    "explanation": "Los Virtual Threads son montados sobre Platform Threads (carrier threads) del ForkJoinPool. Cuando el Virtual Thread hace una operación bloqueante (I/O, sleep, etc.), se desmonta del carrier thread, que puede ejecutar otro Virtual Thread. Son millones de VT posibles sobre pocos carrier threads.",
-    "trap": "Los Virtual Threads son ideales para tareas I/O-bound, NO para CPU-bound. Para CPU-bound los Platform Threads son mejores. synchronized funciona pero puede causar 'thread pinning' (el carrier thread queda bloqueado)."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es el ExecutorService correcto para usar con Virtual Threads en Java 21?",
-    "code": "// ¿Cuál es la forma recomendada?\ntry (var executor = ???) {\n    for (int i = 0; i < 1_000_000; i++) {\n        int id = i;\n        executor.submit(() -> process(id));\n    }\n}",
-    "options": {
-      "A": "Executors.newFixedThreadPool(1_000_000)",
-      "B": "Executors.newCachedThreadPool()",
-      "C": "Executors.newVirtualThreadPerTaskExecutor()",
-      "D": "Executors.newSingleThreadExecutor()"
-    },
-    "correct": "C",
-    "explanation": "Executors.newVirtualThreadPerTaskExecutor() crea un ExecutorService que crea un nuevo Virtual Thread para cada tarea. Perfectamente válido crear un millón de Virtual Threads porque son livianos (KB, no MB). Implementa AutoCloseable, lo que permite usarlo en try-with-resources.",
-    "trap": "newVirtualThreadPerTaskExecutor() crea UN Virtual Thread POR TAREA. A diferencia de un pool de Platform Threads, no necesitas limitar el número porque los VTs son extremadamente livianos."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Medio",
-    "question": "¿Qué nueva interfaz introdujo Java 21 para colecciones que tienen un orden de encuentro definido?",
-    "code": null,
-    "options": {
-      "A": "OrderedCollection",
-      "B": "SequencedCollection",
-      "C": "SortedCollection",
-      "D": "IndexedCollection"
-    },
-    "correct": "B",
-    "explanation": "Java 21 introdujo SequencedCollection (y SequencedSet, SequencedMap) para colecciones con orden definido. Provee métodos: getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), y reversed().",
-    "trap": "No confundas SequencedCollection con SortedSet/NavigableSet. SequencedCollection es sobre orden de encuentro (no necesariamente sorted). List, Deque, LinkedHashSet son SequencedCollection. HashSet NO."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la salida de este código usando la nueva API de Sequenced Collections de Java 21?",
-    "code": "import java.util.*;\npublic class Test {\n    public static void main(String[] args) {\n        List<String> list = new ArrayList<>(List.of(\"a\",\"b\",\"c\",\"d\"));\n        System.out.println(list.getFirst());\n        System.out.println(list.getLast());\n        list.addFirst(\"Z\");\n        System.out.println(list.getFirst());\n        System.out.println(list.reversed().getFirst());\n    }\n}",
-    "options": {
-      "A": "a d Z a",
-      "B": "a d Z d",
-      "C": "a d a d",
-      "D": "Error de compilación"
-    },
-    "correct": "B",
-    "explanation": "list.getFirst()='a', list.getLast()='d'. Después de addFirst('Z'), la lista es [Z,a,b,c,d], getFirst()='Z'. list.reversed() retorna una vista invertida [d,c,b,a,Z], getFirst()='d'.",
-    "trap": "reversed() retorna una VISTA de la lista en orden inverso, no una copia. Los cambios en la lista original se reflejan en la vista reversed() y viceversa."
-  },
-  {
-    "topic": "Pattern Matching for Switch (Java 21)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la salida de este código con Pattern Matching for Switch (estable en Java 21)?",
-    "code": "public class Test {\n    sealed interface Shape permits Circle, Rect, Triangle {}\n    record Circle(double r) implements Shape {}\n    record Rect(double w, double h) implements Shape {}\n    record Triangle(double b, double h) implements Shape {}\n\n    static String describe(Shape s) {\n        return switch (s) {\n            case Circle c when c.r() > 10 -> \"Large circle r=\" + c.r();\n            case Circle c -> \"Small circle r=\" + c.r();\n            case Rect r -> \"Rect \" + r.w() + \"x\" + r.h();\n            case Triangle t -> \"Triangle\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(describe(new Circle(5)));\n        System.out.println(describe(new Circle(15)));\n    }\n}",
-    "options": {
-      "A": "Large circle r=5.0 Small circle r=15.0",
-      "B": "Small circle r=5.0 Large circle r=15.0",
-      "C": "Small circle r=5.0 Small circle r=15.0",
-      "D": "Error de compilación"
-    },
-    "correct": "B",
-    "explanation": "El switch evalúa los cases en orden. Circle(5): first case: c.r()>10? No (5>10 false). Second case: Circle c → 'Small circle r=5.0'. Circle(15): first case: c.r()>10? Sí (15>10 true) → 'Large circle r=15.0'.",
-    "trap": "Los guarded patterns (when) en switch se evalúan en orden de declaración. Si la guard falla, continúa con el siguiente case. El switch con sealed interface es exhaustivo sin default."
-  },
-  {
-    "topic": "Pattern Matching for Switch (Java 21)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la salida de este código con case null en switch (Java 21)?",
-    "code": "public class Test {\n    public static void main(String[] args) {\n        Object obj = null;\n        String result = switch (obj) {\n            case null -> \"es null\";\n            case String s -> \"String: \" + s;\n            case Integer i -> \"Integer: \" + i;\n            default -> \"Otro: \" + obj;\n        };\n        System.out.println(result);\n    }\n}",
-    "options": {
-      "A": "NullPointerException",
-      "B": "es null",
-      "C": "Otro: null",
-      "D": "Error de compilación"
-    },
-    "correct": "B",
-    "explanation": "En Java 21, el switch expression soporta 'case null' explícitamente. Cuando obj es null y existe 'case null', se maneja sin lanzar NullPointerException. Sin 'case null', el switch con null siempre lanzaría NPE.",
-    "trap": "Sin 'case null', un switch con valor null SIEMPRE lanza NullPointerException, incluso si hay un 'default'. Con 'case null' (Java 21 estable), null se maneja explícitamente antes del default."
-  },
-  {
-    "topic": "Record Patterns (Java 21)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la salida de este código con Record Patterns (estable en Java 21)?",
-    "code": "public class Test {\n    record Point(int x, int y) {}\n    record Line(Point start, Point end) {}\n\n    static String analyze(Object o) {\n        return switch (o) {\n            case Line(Point(int x1, int y1), Point(int x2, int y2))\n                when x1 == x2 -> \"Vertical line at x=\" + x1;\n            case Line(Point(int x1, int y1), Point(int x2, int y2))\n                when y1 == y2 -> \"Horizontal line at y=\" + y1;\n            case Line l -> \"Diagonal line\";\n            default -> \"Not a line\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(analyze(new Line(new Point(3,0), new Point(3,5))));\n        System.out.println(analyze(new Line(new Point(0,2), new Point(4,2))));\n    }\n}",
-    "options": {
-      "A": "Diagonal line Horizontal line at y=2",
-      "B": "Vertical line at x=3 Horizontal line at y=2",
-      "C": "Vertical line at x=3 Diagonal line",
-      "D": "Error de compilación"
-    },
-    "correct": "B",
-    "explanation": "Record Patterns permiten desestructurar Records en switch/instanceof. Line(Point(3,0), Point(3,5)): x1=3, y1=0, x2=3, y2=5. x1==x2 (3==3) → 'Vertical line at x=3'. Line(Point(0,2), Point(4,2)): x1=0, x2=4 (distinto), y1=2, y2=2 → 'Horizontal line at y=2'.",
-    "trap": "Los Record Patterns pueden anidarse (nested patterns). Los componentes del Record se extraen directamente en las variables del pattern. Estable desde Java 21 (preview en 19/20)."
-  },
-  {
-    "topic": "Record Patterns (Java 21)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la salida de este código con instanceof y Record Patterns?",
-    "code": "public class Test {\n    record Pair<A, B>(A first, B second) {}\n\n    public static void main(String[] args) {\n        Object o = new Pair<>(\"hello\", 42);\n        if (o instanceof Pair(String s, Integer i)) {\n            System.out.println(s.toUpperCase() + \" - \" + (i * 2));\n        } else {\n            System.out.println(\"No match\");\n        }\n    }\n}",
-    "options": {
-      "A": "HELLO - 84",
-      "B": "hello - 42",
-      "C": "No match",
-      "D": "Error de compilación"
-    },
-    "correct": "A",
-    "explanation": "El instanceof con Record Pattern desestructura el Record: verifica que o sea Pair con first de tipo String y second de tipo Integer. Si coincide, asigna s='hello' e i=42. s.toUpperCase()='HELLO', i*2=84.",
-    "trap": "El Record Pattern en instanceof realiza TANTO la verificación de tipo COMO la extracción de componentes en una sola expresión. Los tipos de los componentes también se verifican."
-  },
-  {
-    "topic": "String Templates (Java 21 Preview)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la sintaxis correcta de un String Template con el procesador STR en Java 21 (preview)?",
-    "code": "// Dado:\nString name = \"Java\";\nint version = 21;\n// ¿Cuál es el template correcto?",
-    "options": {
-      "A": "STR.\"Hola \\{name} versión \\{version}\"",
-      "B": "STR:\"Hola ${name} versión ${version}\"",
-      "C": "f\"Hola {name} versión {version}\"",
-      "D": "\"Hola \" + name + \" versión \" + version"
-    },
-    "correct": "A",
-    "explanation": "Los String Templates (JEP 430, preview en Java 21) usan la sintaxis: PROCESADOR.\"texto \\{expresión}\". STR es el procesador estándar que interpola strings. Las expresiones van entre \\{ y }. Esta es una feature preview en Java 21.",
-    "trap": "String Templates son PREVIEW en Java 21 y necesitan --enable-preview. La sintaxis usa \\{expr} NO ${expr} (como en otros lenguajes). STR, FMT y RAW son los procesadores incluidos."
-  },
-  {
-    "topic": "Unnamed Classes & Instance Main (Java 21 Preview)",
-    "difficulty": "Medio",
-    "question": "¿Qué característica preview de Java 21 permite escribir el siguiente código sin declarar explícitamente la clase?",
-    "code": "// Archivo: Hello.java\nvoid main() {\n    System.out.println(\"Hello, Java 21!\");\n}",
-    "options": {
-      "A": "Anonymous Classes",
-      "B": "Unnamed Classes and Instance Main Methods (JEP 445)",
-      "C": "Compact Programs",
-      "D": "Script Mode"
-    },
-    "correct": "B",
-    "explanation": "JEP 445 (preview Java 21) introduce Unnamed Classes e Instance Main Methods. Permite omitir la declaración de clase pública y usar void main() sin static, perfecto para programas simples y aprendizaje. El compilador infiere la clase envolvente.",
-    "trap": "Esta es una feature PREVIEW. En producción se sigue requiriendo: public class NombreArchivo { public static void main(String[] args) { } }. Está pensada para reducir la curva de aprendizaje de Java."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál de las siguientes situaciones causa 'thread pinning' en Virtual Threads?",
-    "code": null,
-    "options": {
-      "A": "Usar ReentrantLock en un Virtual Thread",
-      "B": "Usar synchronized en un Virtual Thread que bloquea en I/O",
-      "C": "Crear más de 10,000 Virtual Threads simultáneos",
-      "D": "Llamar a Thread.sleep() en un Virtual Thread"
-    },
-    "correct": "B",
-    "explanation": "El 'thread pinning' ocurre cuando un Virtual Thread no puede desmontarse de su carrier thread. Sucede principalmente con: (1) código dentro de bloques synchronized y (2) llamadas a métodos nativos. Thread.sleep() y ReentrantLock sí permiten desmontar el VT.",
-    "trap": "synchronized causa thread pinning porque los JVM monitors están ligados a Platform Threads. La solución para código I/O-bound es usar ReentrantLock en lugar de synchronized. Thread.sleep() y java.util.concurrent.locks SÍ funcionan correctamente con VTs."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Medio",
-    "question": "¿Cuál de las siguientes colecciones implementa SequencedSet en Java 21?",
-    "code": null,
-    "options": {
-      "A": "HashSet",
-      "B": "LinkedHashSet",
-      "C": "TreeSet",
-      "D": "Tanto LinkedHashSet como TreeSet"
-    },
-    "correct": "D",
-    "explanation": "SequencedSet es implementado por LinkedHashSet (orden de inserción) y TreeSet (orden natural/comparator). HashSet NO implementa SequencedSet porque no garantiza orden. SequencedSet extiende tanto SequencedCollection como Set.",
-    "trap": "LinkedHashSet mantiene orden de inserción. TreeSet mantiene orden natural o por Comparator. Ambos son SequencedSet. HashSet no tiene orden definido → NO implementa SequencedSet."
-  },
-  {
-    "topic": "Pattern Matching for Switch (Java 21)",
-    "difficulty": "Difícil",
-    "question": "¿Qué pasa al ejecutar este código con dominance checking en switch?",
-    "code": "public class Test {\n    static String check(Object o) {\n        return switch (o) {\n            case Integer i -> \"Integer: \" + i;\n            case Number n -> \"Number: \" + n; // ¿compila?\n            default -> \"Other\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(check(42));\n        System.out.println(check(3.14));\n    }\n}",
-    "options": {
-      "A": "Integer: 42 Number: 3.14",
-      "B": "Integer: 42 Other",
-      "C": "Error de compilación",
-      "D": "Number: 42 Number: 3.14"
-    },
-    "correct": "A",
-    "explanation": "El compilador aplica 'dominance checking': 'case Integer i' es más específico que 'case Number n', por lo que Integer va primero (correcto). Si fuera al revés (Number antes que Integer), daría error de compilación por dominance. check(42): Integer → 'Integer: 42'. check(3.14): Double, no es Integer, sí es Number → 'Number: 3.14'.",
-    "trap": "En switch con type patterns, un case más específico DEBE ir antes que uno más general. Si pones 'case Number n' antes de 'case Integer i', el compilador da error porque Integer es subclase de Number y el case Integer sería inalcanzable."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la diferencia principal entre Virtual Threads y Platform Threads en Java 21?",
-    "code": null,
-    "options": {
-      "A": "Los Virtual Threads no pueden tener nombre ni prioridad",
-      "B": "Los Virtual Threads son siempre daemon threads y tienen stack más pequeño",
-      "C": "Los Virtual Threads no soportan ThreadLocal",
-      "D": "Los Virtual Threads solo funcionan con ExecutorService"
-    },
-    "correct": "B",
-    "explanation": "Los Virtual Threads en Java 21 son SIEMPRE daemon threads (no evitan que la JVM termine). Su stack crece dinámicamente empezando pequeño (KBs vs MBs de Platform Threads). Sí soportan ThreadLocal (aunque con precaución). Pueden crearse directamente sin ExecutorService.",
-    "trap": "Virtual Threads son siempre daemon=true y NO pueden cambiarse a non-daemon. Si el main thread termina, los Virtual Threads también terminan. Para esperar su finalización usa join() o un ExecutorService con awaitTermination()."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Medio",
-    "question": "¿Qué retorna el método reversed() en una SequencedMap en Java 21?",
-    "code": "import java.util.*;\npublic class Test {\n    public static void main(String[] args) {\n        SequencedMap<String, Integer> map = new LinkedHashMap<>();\n        map.put(\"a\", 1);\n        map.put(\"b\", 2);\n        map.put(\"c\", 3);\n        SequencedMap<String, Integer> rev = map.reversed();\n        System.out.println(rev.firstEntry().getKey());\n        rev.put(\"d\", 4);\n        System.out.println(map.lastEntry().getKey());\n    }\n}",
-    "options": {
-      "A": "c d",
-      "B": "a a",
-      "C": "c a",
-      "D": "Error UnsupportedOperationException"
-    },
-    "correct": "A",
-    "explanation": "reversed() retorna una VISTA del mapa en orden inverso. rev.firstEntry() es la última entrada del mapa original: 'c'. rev.put('d',4) añade al inicio de la vista (=final del original). map.lastEntry() ahora es 'd'.",
-    "trap": "reversed() en SequencedMap/SequencedCollection retorna una VISTA (no copia). Las modificaciones en la vista se reflejan en el original y viceversa. addFirst en la vista equivale a addLast en el original."
-  },
-  {
-    "topic": "Record Patterns (Java 21)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la salida de este código con Record Patterns anidados en for-each?",
-    "code": "public class Test {\n    record Range(int min, int max) {}\n    record Segment(Range x, Range y) {}\n\n    public static void main(String[] args) {\n        var segments = java.util.List.of(\n            new Segment(new Range(0,10), new Range(0,5)),\n            new Segment(new Range(5,15), new Range(3,8))\n        );\n        for (Segment(Range(int x1, int x2), Range(int y1, int y2)) : segments) {\n            System.out.println((x2-x1) + \",\" + (y2-y1));\n        }\n    }\n}",
-    "options": {
-      "A": "10,5 10,5",
-      "B": "10,5 10,8",
-      "C": "0,0 5,3",
-      "D": "Error de compilación"
-    },
-    "correct": "A",
-    "explanation": "Record Patterns en for-each desestructuran cada Segment. Primero: Range(0,10) → x1=0,x2=10; Range(0,5) → y1=0,y2=5; x2-x1=10, y2-y1=5. Segundo: Range(5,15) → x1=5,x2=15; Range(3,8) → y1=3,y2=8; x2-x1=10, y2-y1=5.",
-    "trap": "Los Record Patterns funcionan en for-each (enhanced for) y en switch/instanceof. Los nombres de variables en el pattern se asignan en el orden de los componentes del record, no por nombre."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la salida de este código con Virtual Threads y join()?",
-    "code": "public class Test {\n    public static void main(String[] args) throws Exception {\n        Thread vt = Thread.ofVirtual().unstarted(() -> {\n            System.out.println(\"VT: \" + Thread.currentThread().isVirtual());\n        });\n        System.out.println(\"Before start\");\n        vt.start();\n        vt.join();\n        System.out.println(\"After join\");\n    }\n}",
-    "options": {
-      "A": "Before start After join VT: true",
-      "B": "Before start VT: true After join",
-      "C": "VT: true Before start After join",
-      "D": "Before start VT: false After join"
-    },
-    "correct": "B",
-    "explanation": "'Before start' se imprime antes de vt.start(). El Virtual Thread se inicia e imprime 'VT: true' (isVirtual() retorna true para Virtual Threads). vt.join() espera a que el VT termine. Luego se imprime 'After join'. El orden exacto entre 'Before start' e inicio del VT puede variar, pero vt.start() se llama antes de que el VT se ejecute.",
-    "trap": "Thread.currentThread().isVirtual() retorna true para Virtual Threads. Thread.ofVirtual().unstarted() crea el thread sin iniciarlo. Llama start() explícitamente para iniciarlo. join() funciona igual que con Platform Threads."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Difícil",
-    "question": "¿Cuál de las siguientes opciones describe correctamente la jerarquía de SequencedCollection en Java 21?",
-    "code": null,
-    "options": {
-      "A": "SequencedCollection extiende Iterable y añade getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), reversed()",
-      "B": "SequencedCollection extiende Collection y añade getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), reversed()",
-      "C": "SequencedCollection reemplaza a List y Deque completamente",
-      "D": "SequencedCollection es solo para listas enlazadas"
-    },
-    "correct": "B",
-    "explanation": "SequencedCollection extiende Collection e introduce métodos para acceder y modificar los extremos de la colección. SequencedSet extiende SequencedCollection y Set. SequencedMap tiene su propia jerarquía. No reemplaza List/Deque, los complementa añadiendo una interfaz común.",
-    "trap": "SequencedCollection es una NUEVA interfaz que se insertó en la jerarquía existente. List, Deque, LinkedHashSet, TreeSet ahora implementan SequencedCollection. Añade el método reversed() que retorna una vista en orden inverso."
-  },
-  {
-    "topic": "Pattern Matching for Switch (Java 21)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la diferencia entre 'case String s when s.isEmpty()' y 'case String s' en un switch Java 21?",
-    "code": null,
-    "options": {
-      "A": "No hay diferencia, son equivalentes",
-      "B": "'when' es una guard que aplica una condición adicional; si falla, continúa con el siguiente case",
-      "C": "'when' solo funciona con records, no con tipos primitivos o clases",
-      "D": "'when' convierte el switch en una expresión regex"
-    },
-    "correct": "B",
-    "explanation": "En Pattern Matching for switch, 'when' es una guard (condición de guardia) que se evalúa DESPUÉS de que el pattern hace match. Si la guard es false, el runtime continúa con el siguiente case. 'case String s when s.isEmpty()' solo coincide si el objeto es un String Y está vacío.",
-    "trap": "Si 'case String s when condition' falla la guard, NO lanza excepción ni va al default automáticamente: intenta el siguiente case. Si ningún case hace match (y no hay default), lanza MatchException en Java 21."
-  },
-  {
-    "topic": "Virtual Threads (Project Loom)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la forma correcta de migrar un servidor web de Platform Threads a Virtual Threads en Java 21?",
-    "code": "// Código ACTUAL (Platform Threads):\nExecutorService executor = Executors.newFixedThreadPool(200);\n// Por cada request:\nexecutor.submit(() -> handleRequest(request));",
-    "options": {
-      "A": "Cambiar a Executors.newFixedThreadPool(Integer.MAX_VALUE)",
-      "B": "Cambiar a Executors.newVirtualThreadPerTaskExecutor()",
-      "C": "Cambiar a Executors.newCachedThreadPool()",
-      "D": "No es necesario cambiar nada, el JVM optimiza automáticamente"
-    },
-    "correct": "B",
-    "explanation": "La migración más simple y efectiva es reemplazar el pool fijo de Platform Threads por Executors.newVirtualThreadPerTaskExecutor(). Crea un nuevo Virtual Thread por cada tarea, eliminando el límite artificial de 200 hilos. Los VTs se gestionan automáticamente por la JVM.",
-    "trap": "newCachedThreadPool() sigue usando Platform Threads. newFixedThreadPool(MAX_VALUE) crearía millones de Platform Threads (malo). La verdadera mejora viene de newVirtualThreadPerTaskExecutor() que usa VTs livianos (KB cada uno, no MB)."
-  },
-  {
-    "topic": "Record Patterns (Java 21)",
-    "difficulty": "Medio",
-    "question": "¿Cuál es la salida de este código con Record Pattern y variables sin nombre (Java 21 preview)?",
-    "code": "public class Test {\n    record Person(String name, int age, String city) {}\n\n    public static void main(String[] args) {\n        Object o = new Person(\"Ana\", 30, \"Madrid\");\n        // Solo me interesa el nombre\n        if (o instanceof Person(String name, _, _)) {\n            System.out.println(\"Name: \" + name);\n        }\n    }\n}",
-    "options": {
-      "A": "Name: Ana",
-      "B": "Error de compilación",
-      "C": "Name: Ana 30 Madrid",
-      "D": "NullPointerException"
-    },
-    "correct": "A",
-    "explanation": "Java 21 (preview) introduce Unnamed Patterns and Variables (JEP 443). El guion bajo _ en un Record Pattern indica que ese componente no te interesa y no necesitas variable. Solo extrae 'name'. En Java 21 preview: instanceof Person(String name, _, _) es válido.",
-    "trap": "Los Unnamed Patterns (_) son preview en Java 21 y requieren --enable-preview. Simplifican el código cuando solo necesitas algunos componentes del record. En versiones anteriores tenías que declarar una variable para cada componente."
-  },
-  {
-    "topic": "Sequenced Collections",
-    "difficulty": "Medio",
-    "question": "¿Cuál de las siguientes afirmaciones sobre SequencedMap en Java 21 es CORRECTA?",
-    "code": null,
-    "options": {
-      "A": "SequencedMap.firstEntry() retorna Optional<Map.Entry<K,V>>",
-      "B": "SequencedMap.firstEntry() retorna Map.Entry<K,V> y puede ser null si el mapa está vacío",
-      "C": "SequencedMap.firstEntry() lanza NoSuchElementException si el mapa está vacío",
-      "D": "SequencedMap.firstEntry() retorna la entrada con la clave más pequeña"
-    },
-    "correct": "B",
-    "explanation": "SequencedMap.firstEntry() y lastEntry() retornan Map.Entry<K,V> o null si el mapa está vacío (NO Optional). SequencedMap no garantiza orden por valor de clave (eso es NavigableMap), sino orden de encuentro (para LinkedHashMap es orden de inserción).",
-    "trap": "firstEntry() retorna null (no Optional, no excepción) si el mapa está vacío. Diferente a Optional de NavigableMap.firstEntry(). firstEntry() de SequencedMap es sobre ORDEN DE ENCUENTRO, no el valor de clave más pequeño."
-  },
-  {
-    "topic": "Pattern Matching for Switch (Java 21)",
-    "difficulty": "Difícil",
-    "question": "¿Cuál es la salida de este código con Pattern Matching y herencia en switch?",
-    "code": "public class Test {\n    static class Animal {}\n    static class Dog extends Animal {}\n    static class Poodle extends Dog {}\n\n    static String identify(Animal a) {\n        return switch (a) {\n            case Poodle p -> \"Poodle\";\n            case Dog d -> \"Dog\";\n            case Animal an -> \"Animal\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(identify(new Poodle()));\n        System.out.println(identify(new Dog()));\n        System.out.println(identify(new Animal()));\n    }\n}",
-    "options": {
-      "A": "Poodle Dog Animal",
-      "B": "Animal Dog Poodle",
-      "C": "Dog Dog Animal",
-      "D": "Error de compilación"
-    },
-    "correct": "A",
-    "explanation": "Los cases van de más específico a más general: Poodle antes que Dog, Dog antes que Animal. Poodle es Poodle → 'Poodle'. Dog (no Poodle) → 'Dog'. Animal (no Dog, no Poodle) → 'Animal'. El compilador verifica que no haya dominance issues.",
-    "trap": "En switch con type patterns, SIEMPRE ordena de más específico a más general. Si pusieras 'case Animal an' primero, sería inalcanzable y daría error de compilación por dominance checking."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Fácil",
-    "question": "¿Cuál línea compila?",
-    "code": null,
-    "options": {
-      "A": "var x;",
-      "B": "var x = null;",
-      "C": "var x = 10;",
-      "D": "var x = {1,2,3};"
-    },
-    "correct": "C",
-    "why": "`var` necesita un inicializador válido y `10` permite inferir un `int`.",
-    "explanation": "`var` necesita un inicializador válido y `10` permite inferir un `int`.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Medio",
-    "question": "¿Qué tipo tiene z?",
-    "code": "int x = 5;\nlong y = 10;\nvar z = x + y;",
-    "options": {
-      "A": "int",
-      "B": "long",
-      "C": "Integer",
-      "D": "Long"
-    },
-    "correct": "B",
-    "why": "La promoción numérica de `int + long` produce `long`.",
-    "explanation": "La promoción numérica de `int + long` produce `long`.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Medio",
-    "question": "¿Qué pasa aquí?",
-    "code": "short s = 1;\ns = s + 1;",
-    "options": {
-      "A": "Compila",
-      "B": "No compila",
-      "C": "Lanza excepción",
-      "D": "Imprime 2"
-    },
-    "correct": "B",
-    "why": "`s + 1` se promociona a `int` y no puede asignarse implícitamente a `short`.",
-    "explanation": "`s + 1` se promociona a `int` y no puede asignarse implícitamente a `short`.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Fácil",
-    "question": "¿Qué pasa aquí?",
-    "code": "short s = 1;\ns += 1;",
-    "options": {
-      "A": "No compila",
-      "B": "Compila",
-      "C": "Lanza excepción",
-      "D": "s se vuelve long"
-    },
-    "correct": "B",
-    "why": "El operador compuesto hace un cast implícito al tipo de la variable izquierda.",
-    "explanation": "El operador compuesto hace un cast implícito al tipo de la variable izquierda.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "Integer a = 127;\nInteger b = 127;\nSystem.out.println(a == b);",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error de compilación",
-      "D": "NullPointerException"
-    },
-    "correct": "A",
-    "why": "`Integer` cachea normalmente valores entre -128 y 127.",
-    "explanation": "`Integer` cachea normalmente valores entre -128 y 127.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "Integer a = 128;\nInteger b = 128;\nSystem.out.println(a == b);",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error de compilación",
-      "D": "NullPointerException"
-    },
-    "correct": "B",
-    "why": "128 suele quedar fuera del cache de Integer, así que `==` compara dos referencias distintas.",
-    "explanation": "128 suele quedar fuera del cache de Integer, así que `==` compara dos referencias distintas.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Medio",
-    "question": "¿Qué pasa aquí?",
-    "code": "Boolean b = null;\nSystem.out.println(b ? \"Y\" : \"N\");",
-    "options": {
-      "A": "Imprime N",
-      "B": "Imprime null",
-      "C": "NullPointerException",
-      "D": "No compila"
-    },
-    "correct": "C",
-    "why": "Hay unboxing de `Boolean` a `boolean`, y un wrapper nulo produce `NullPointerException`.",
-    "explanation": "Hay unboxing de `Boolean` a `boolean`, y un wrapper nulo produce `NullPointerException`.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "String s = \"Java\";\ns.concat(\"21\");\nSystem.out.println(s);",
-    "options": {
-      "A": "Java21",
-      "B": "21",
-      "C": "Java",
-      "D": "Error"
-    },
-    "correct": "C",
-    "why": "`String` es inmutable y el resultado de `concat()` no se reasigna.",
-    "explanation": "`String` es inmutable y el resultado de `concat()` no se reasigna.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "StringBuilder sb = new StringBuilder(\"ab\");\nsb.append(\"c\").reverse();\nSystem.out.println(sb);",
-    "options": {
-      "A": "abc",
-      "B": "cba",
-      "C": "ab",
-      "D": "Error"
-    },
-    "correct": "B",
-    "why": "`StringBuilder` es mutable: después de append queda `abc` y luego `reverse()` produce `cba`.",
-    "explanation": "`StringBuilder` es mutable: después de append queda `abc` y luego `reverse()` produce `cba`.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Cuál afirmación sobre arrays es correcta?",
-    "code": null,
-    "options": {
-      "A": "Son de tamaño variable",
-      "B": "Son de tamaño fijo",
-      "C": "No aceptan primitivos",
-      "D": "Son inmutables"
-    },
-    "correct": "B",
-    "why": "Un array tiene longitud fija una vez creado, aunque sus elementos sí pueden cambiar.",
-    "explanation": "Un array tiene longitud fija una vez creado, aunque sus elementos sí pueden cambiar.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Difícil",
-    "question": "¿Qué imprime?",
-    "code": "var list = java.util.Arrays.asList(new int[]{1,2,3});\nSystem.out.println(list.size());",
-    "options": {
-      "A": "1",
-      "B": "2",
-      "C": "3",
-      "D": "No compila"
-    },
-    "correct": "A",
-    "why": "Con un array primitivo, `Arrays.asList()` recibe el array completo como un único elemento.",
-    "explanation": "Con un array primitivo, `Arrays.asList()` recibe el array completo como un único elemento.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "int[] a = {1,2,3};\nint[] b = a;\nb[1] = 9;\nSystem.out.println(a[1]);",
-    "options": {
-      "A": "2",
-      "B": "3",
-      "C": "9",
-      "D": "Error"
-    },
-    "correct": "C",
-    "why": "Ambas variables apuntan al mismo array.",
-    "explanation": "Ambas variables apuntan al mismo array.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Cuál colección es inmutable?",
-    "code": null,
-    "options": {
-      "A": "new ArrayList<>()",
-      "B": "new LinkedList<>()",
-      "C": "List.of(1,2,3)",
-      "D": "new Vector<>()"
-    },
-    "correct": "C",
-    "why": "`List.of()` crea una colección no modificable.",
-    "explanation": "`List.of()` crea una colección no modificable.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Qué pasa aquí?",
-    "code": "var list = List.of(\"a\",\"b\");\nlist.add(\"c\");",
-    "options": {
-      "A": "No compila",
-      "B": "Compila y agrega",
-      "C": "Compila y falla en runtime",
-      "D": "Borra la lista"
-    },
-    "correct": "C",
-    "why": "La referencia es de tipo `List`, por eso compila, pero la implementación es inmutable y falla al modificarla.",
-    "explanation": "La referencia es de tipo `List`, por eso compila, pero la implementación es inmutable y falla al modificarla.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Control Flow & Switch",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "switch (2) {\n    case 1 -> System.out.println(\"A\");\n    case 2 -> System.out.println(\"B\");\n    default -> System.out.println(\"C\");\n}",
-    "options": {
-      "A": "A",
-      "B": "B",
-      "C": "C",
-      "D": "A B"
-    },
-    "correct": "B",
-    "why": "Con `case ->` se ejecuta una sola rama y aquí coincide `case 2`.",
-    "explanation": "Con `case ->` se ejecuta una sola rama y aquí coincide `case 2`.",
-    "trap": "Switch moderno no se comporta igual que el clásico: ojo con exhaustividad, yield y ausencia de fall-through con ->."
-  },
-  {
-    "topic": "Control Flow & Switch",
-    "difficulty": "Fácil",
-    "question": "¿Cuál afirmación sobre switch expression es correcta?",
-    "code": null,
-    "options": {
-      "A": "No devuelve valor",
-      "B": "Siempre usa break",
-      "C": "Puede usar yield",
-      "D": "Solo funciona con int"
-    },
-    "correct": "C",
-    "why": "Un `switch expression` puede usar `yield` dentro de bloques para devolver un valor.",
-    "explanation": "Un `switch expression` puede usar `yield` dentro de bloques para devolver un valor.",
-    "trap": "Switch moderno no se comporta igual que el clásico: ojo con exhaustividad, yield y ausencia de fall-through con ->."
-  },
-  {
-    "topic": "Control Flow & Switch",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "int x = 2;\nvar result = switch (x) {\n    case 1 -> \"one\";\n    case 2 -> \"two\";\n    default -> \"other\";\n};\nSystem.out.println(result);",
-    "options": {
-      "A": "one",
-      "B": "two",
-      "C": "other",
-      "D": "Error"
-    },
-    "correct": "B",
-    "why": "El `switch expression` produce el valor `two`.",
-    "explanation": "El `switch expression` produce el valor `two`.",
-    "trap": "Switch moderno no se comporta igual que el clásico: ojo con exhaustividad, yield y ausencia de fall-through con ->."
-  },
-  {
-    "topic": "Control Flow & Switch",
-    "difficulty": "Fácil",
-    "question": "Con `case ->` en `switch`, ¿hay fall-through?",
-    "code": null,
-    "options": {
-      "A": "Sí, siempre",
-      "B": "No",
-      "C": "Solo con int",
-      "D": "Solo con enum"
-    },
-    "correct": "B",
-    "why": "La sintaxis moderna `->` elimina el fall-through automático.",
-    "explanation": "La sintaxis moderna `->` elimina el fall-through automático.",
-    "trap": "Switch moderno no se comporta igual que el clásico: ojo con exhaustividad, yield y ausencia de fall-through con ->."
-  },
-  {
-    "topic": "Control Flow & Switch",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "for (var i = 0; i < 3; i++) {\n    System.out.print(i);\n}",
-    "options": {
-      "A": "123",
-      "B": "012",
-      "C": "001122",
-      "D": "No compila"
-    },
-    "correct": "B",
-    "why": "`var` infiere `int` y el bucle imprime 0, 1 y 2.",
-    "explanation": "`var` infiere `int` y el bucle imprime 0, 1 y 2.",
-    "trap": "Switch moderno no se comporta igual que el clásico: ojo con exhaustividad, yield y ausencia de fall-through con ->."
-  },
-  {
-    "topic": "Java Fundamentals & Data Types",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "char c = 65;\nSystem.out.println(c);",
-    "options": {
-      "A": "65",
-      "B": "A",
-      "C": "Error",
-      "D": "\\u0041"
-    },
-    "correct": "B",
-    "why": "El valor numérico 65 corresponde al carácter Unicode `A`.",
-    "explanation": "El valor numérico 65 corresponde al carácter Unicode `A`.",
-    "trap": "En Java OCP suelen caer promotion, boxing/unboxing, cache de wrappers y usos inválidos de var."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Cuál afirmación sobre clases abstractas es correcta?",
-    "code": null,
-    "options": {
-      "A": "No pueden tener constructores",
-      "B": "No pueden tener métodos concretos",
-      "C": "Pueden tener métodos abstractos y concretos",
-      "D": "Se pueden instanciar directamente"
-    },
-    "correct": "C",
-    "why": "Una clase abstracta puede mezclar métodos con implementación y métodos abstractos.",
-    "explanation": "Una clase abstracta puede mezclar métodos con implementación y métodos abstractos.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Qué hace final en un método?",
-    "code": null,
-    "options": {
-      "A": "Obliga a sobrescribirlo",
-      "B": "Impide sobrescribirlo",
-      "C": "Lo vuelve abstracto",
-      "D": "Lo hace estático"
-    },
-    "correct": "B",
-    "why": "Un método `final` no puede ser overridden en una subclase.",
-    "explanation": "Un método `final` no puede ser overridden en una subclase.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Cuál afirmación sobre interfaces modernas es correcta?",
-    "code": null,
-    "options": {
-      "A": "No pueden tener métodos default",
-      "B": "No pueden tener métodos static",
-      "C": "Pueden tener métodos private",
-      "D": "Deben tener exactamente un método"
-    },
-    "correct": "C",
-    "why": "Desde Java 9, las interfaces pueden declarar métodos `private` de apoyo.",
-    "explanation": "Desde Java 9, las interfaces pueden declarar métodos `private` de apoyo.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Medio",
-    "question": "Si una clase implementa dos interfaces con el mismo método default, entonces:",
-    "code": null,
-    "options": {
-      "A": "Java escoge una",
-      "B": "La clase debe sobrescribirlo",
-      "C": "Nunca compila",
-      "D": "Se ejecutan ambas"
-    },
-    "correct": "B",
-    "why": "La clase debe resolver el conflicto sobrescribiendo el método.",
-    "explanation": "La clase debe resolver el conflicto sobrescribiendo el método.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Qué es sobrecarga de métodos?",
-    "code": null,
-    "options": {
-      "A": "Mismo nombre, distinta firma",
-      "B": "Mismo nombre, misma firma",
-      "C": "Solo cambia retorno",
-      "D": "Solo ocurre con herencia"
-    },
-    "correct": "A",
-    "why": "La sobrecarga usa el mismo nombre con parámetros distintos.",
-    "explanation": "La sobrecarga usa el mismo nombre con parámetros distintos.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Qué es sobrescritura de métodos?",
-    "code": null,
-    "options": {
-      "A": "Mismo nombre en la misma clase",
-      "B": "Redefinir un método heredado",
-      "C": "Cambiar una variable",
-      "D": "Duplicar constructores"
-    },
-    "correct": "B",
-    "why": "La sobrescritura redefine en la subclase un método heredado con misma firma compatible.",
-    "explanation": "La sobrescritura redefine en la subclase un método heredado con misma firma compatible.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Medio",
-    "question": "Al sobrescribir un método, la visibilidad:",
-    "code": null,
-    "options": {
-      "A": "Puede reducirse",
-      "B": "Debe ser igual o más amplia",
-      "C": "Debe ser siempre privada",
-      "D": "No importa"
-    },
-    "correct": "B",
-    "why": "No se puede reducir la visibilidad de un método al sobrescribirlo.",
-    "explanation": "No se puede reducir la visibilidad de un método al sobrescribirlo.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Medio",
-    "question": "Sobre métodos static y herencia, ¿qué es correcto?",
-    "code": null,
-    "options": {
-      "A": "Se sobrescriben",
-      "B": "Se ocultan, no se sobrescriben",
-      "C": "No pueden heredarse",
-      "D": "Solo existen en interfaces"
-    },
-    "correct": "B",
-    "why": "Los métodos `static` se ocultan; no participan en override polimórfico.",
-    "explanation": "Los métodos `static` se ocultan; no participan en override polimórfico.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "¿Qué genera automáticamente este record?",
-    "code": "record Person(String name, int age) {}",
-    "options": {
-      "A": "Solo constructor",
-      "B": "Constructor, accesores, equals, hashCode, toString",
-      "C": "Solo getters y setters",
-      "D": "Nada"
-    },
-    "correct": "B",
-    "why": "Un `record` genera constructor canónico, accesores y métodos basados en componentes.",
-    "explanation": "Un `record` genera constructor canónico, accesores y métodos basados en componentes.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "¿Un record puede extender otra clase concreta?",
-    "code": null,
-    "options": {
-      "A": "Sí",
-      "B": "No",
-      "C": "Solo si es final",
-      "D": "Solo si implementa interfaces"
-    },
-    "correct": "B",
-    "why": "Un record ya extiende implícitamente `java.lang.Record`.",
-    "explanation": "Un record ya extiende implícitamente `java.lang.Record`.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Medio",
-    "question": "¿Qué es válido en un record?",
-    "code": null,
-    "options": {
-      "A": "Un compact constructor",
-      "B": "Heredar de cualquier clase",
-      "C": "Campos de instancia extra no estáticos",
-      "D": "Cambiar componentes después de construir"
-    },
-    "correct": "A",
-    "why": "Los compact constructors son válidos para validar componentes en records.",
-    "explanation": "Los compact constructors son válidos para validar componentes en records.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "Una sealed class:",
-    "code": null,
-    "options": {
-      "A": "Permite herencia libre",
-      "B": "Restringe qué clases pueden extenderla",
-      "C": "No puede tener subclases",
-      "D": "Reemplaza abstract"
-    },
-    "correct": "B",
-    "why": "Una jerarquía sellada controla qué subtipos están permitidos.",
-    "explanation": "Una jerarquía sellada controla qué subtipos están permitidos.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "Las subclases directas de una sealed class deben ser:",
-    "code": null,
-    "options": {
-      "A": "abstract o static",
-      "B": "private o protected",
-      "C": "final, sealed o non-sealed",
-      "D": "volatile o transient"
-    },
-    "correct": "C",
-    "why": "Esos son los únicos modificadores válidos para los subtipos directos.",
-    "explanation": "Esos son los únicos modificadores válidos para los subtipos directos.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "non-sealed en una subclase significa:",
-    "code": null,
-    "options": {
-      "A": "Que no se puede extender",
-      "B": "Que reabre la jerarquía",
-      "C": "Que es abstracta",
-      "D": "Que es interna"
-    },
-    "correct": "B",
-    "why": "`non-sealed` vuelve a permitir herencia normal a partir de ese punto.",
-    "explanation": "`non-sealed` vuelve a permitir herencia normal a partir de ese punto.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "¿Qué ventaja tiene esto?",
-    "code": "if (obj instanceof String s) {\n    System.out.println(s.length());\n}",
-    "options": {
-      "A": "Crea menos objetos",
-      "B": "Combina prueba de tipo y cast",
-      "C": "Convierte cualquier objeto a String",
-      "D": "Solo funciona en records"
-    },
-    "correct": "B",
-    "why": "El pattern matching para `instanceof` evita el cast manual después del chequeo.",
-    "explanation": "El pattern matching para `instanceof` evita el cast manual después del chequeo.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Difícil",
-    "question": "¿Cuál compila?",
-    "code": null,
-    "options": {
-      "A": "if (obj instanceof String s || s.length() > 2) {}",
-      "B": "if (obj instanceof String s && s.length() > 2) {}",
-      "C": "Ninguna",
-      "D": "Ambas"
-    },
-    "correct": "B",
-    "why": "La variable de pattern solo está en alcance cuando el flujo garantiza que el match fue verdadero; con `&&` sí.",
-    "explanation": "La variable de pattern solo está en alcance cuando el flujo garantiza que el match fue verdadero; con `&&` sí.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Cuál afirmación sobre enum es correcta?",
-    "code": null,
-    "options": {
-      "A": "Puede extender otra clase",
-      "B": "Puede tener constructor",
-      "C": "No puede tener métodos",
-      "D": "No puede usarse en switch"
-    },
-    "correct": "B",
-    "why": "Un `enum` puede tener constructor, campos y métodos.",
-    "explanation": "Un `enum` puede tener constructor, campos y métodos.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Medio",
-    "question": "El constructor de un enum:",
-    "code": null,
-    "options": {
-      "A": "Debe ser public",
-      "B": "No puede existir",
-      "C": "No puede ser public",
-      "D": "Debe ser protected"
-    },
-    "correct": "C",
-    "why": "No puedes exponer un constructor público en un enum.",
-    "explanation": "No puedes exponer un constructor público en un enum.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Fácil",
-    "question": "¿Cuál acceso es package-private?",
-    "code": null,
-    "options": {
-      "A": "public",
-      "B": "private",
-      "C": "protected",
-      "D": "Sin modificador"
-    },
-    "correct": "D",
-    "why": "Sin modificador, el acceso es de paquete.",
-    "explanation": "Sin modificador, el acceso es de paquete.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "OOP, Inheritance & Interfaces",
-    "difficulty": "Medio",
-    "question": "Una clase interna no estática:",
-    "code": null,
-    "options": {
-      "A": "No puede acceder al outer",
-      "B": "Requiere instancia de la clase externa",
-      "C": "Es igual a una clase top-level",
-      "D": "Debe ser final"
-    },
-    "correct": "B",
-    "why": "Una inner class no estática queda asociada a una instancia de la clase externa.",
-    "explanation": "Una inner class no estática queda asociada a una instancia de la clase externa.",
-    "trap": "La certificación mezcla mucho sobrecarga, sobrescritura, acceso, static hiding y conflictos de default methods."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Fácil",
-    "question": "¿Cuál es una checked exception?",
-    "code": null,
-    "options": {
-      "A": "NullPointerException",
-      "B": "IllegalArgumentException",
-      "C": "IOException",
-      "D": "ArithmeticException"
-    },
-    "correct": "C",
-    "why": "`IOException` es checked porque hereda de `Exception` y no de `RuntimeException`.",
-    "explanation": "`IOException` es checked porque hereda de `Exception` y no de `RuntimeException`.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Fácil",
-    "question": "¿Cuál es unchecked?",
-    "code": null,
-    "options": {
-      "A": "SQLException",
-      "B": "RuntimeException",
-      "C": "IOException",
-      "D": "Exception"
-    },
-    "correct": "B",
-    "why": "`RuntimeException` y sus subclases son unchecked.",
-    "explanation": "`RuntimeException` y sus subclases son unchecked.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Medio",
-    "question": "¿Qué pasa aquí?",
-    "code": "try {\n} catch (Exception e) {\n} catch (java.io.IOException e) {\n}",
-    "options": {
-      "A": "Compila",
-      "B": "El segundo catch es inalcanzable",
-      "C": "El primero es inalcanzable",
-      "D": "Lanza excepción"
-    },
-    "correct": "B",
-    "why": "`Exception` ya captura `IOException`, así que el segundo `catch` queda inalcanzable.",
-    "explanation": "`Exception` ya captura `IOException`, así que el segundo `catch` queda inalcanzable.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Fácil",
-    "question": "try-with-resources requiere que el recurso implemente:",
-    "code": null,
-    "options": {
-      "A": "Serializable",
-      "B": "Runnable",
-      "C": "AutoCloseable",
-      "D": "Comparator"
-    },
-    "correct": "C",
-    "why": "Los recursos deben implementar `AutoCloseable` o una subinterfaz como `Closeable`.",
-    "explanation": "Los recursos deben implementar `AutoCloseable` o una subinterfaz como `Closeable`.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Fácil",
-    "question": "¿En qué orden se cierran los recursos en try-with-resources?",
-    "code": null,
-    "options": {
-      "A": "Mismo orden",
-      "B": "Aleatorio",
-      "C": "Orden inverso",
-      "D": "Nunca se cierran"
-    },
-    "correct": "C",
-    "why": "Se cierran en orden inverso al de declaración.",
-    "explanation": "Se cierran en orden inverso al de declaración.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Medio",
-    "question": "Al sobrescribir, una checked exception declarada:",
-    "code": null,
-    "options": {
-      "A": "Puede ampliarse libremente",
-      "B": "No puede ampliarse",
-      "C": "Debe ser RuntimeException",
-      "D": "Debe eliminarse"
-    },
-    "correct": "B",
-    "why": "No puedes declarar una checked exception más amplia que la del método original.",
-    "explanation": "No puedes declarar una checked exception más amplia que la del método original.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Difícil",
-    "question": "¿Qué permite List<? extends Number>?",
-    "code": null,
-    "options": {
-      "A": "Agregar Integer",
-      "B": "Agregar Double",
-      "C": "Leer elementos como Number",
-      "D": "Escribir cualquier subtipo"
-    },
-    "correct": "C",
-    "why": "Con `? extends Number` puedes leer como `Number`, pero no agregar elementos concretos con seguridad.",
-    "explanation": "Con `? extends Number` puedes leer como `Number`, pero no agregar elementos concretos con seguridad.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Difícil",
-    "question": "¿Qué permite List<? super Integer>?",
-    "code": null,
-    "options": {
-      "A": "Leer siempre como Integer",
-      "B": "Agregar Integer",
-      "C": "Agregar Double",
-      "D": "Nada"
-    },
-    "correct": "B",
-    "why": "Con `? super Integer` puedes agregar `Integer`, pero al leer solo tienes garantía de `Object`.",
-    "explanation": "Con `? super Integer` puedes agregar `Integer`, pero al leer solo tienes garantía de `Object`.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Exceptions & Generics",
-    "difficulty": "Medio",
-    "question": "¿Cuál afirmación sobre genéricos es correcta?",
-    "code": null,
-    "options": {
-      "A": "List<Integer> es subtipo de List<Number>",
-      "B": "List<Integer> y List<Number> son invariantes",
-      "C": "List<Integer> siempre puede asignarse a List<Object>",
-      "D": "Los genéricos no aplican a colecciones"
-    },
-    "correct": "B",
-    "why": "Los genéricos en Java son invariantes.",
-    "explanation": "Los genéricos en Java son invariantes.",
-    "trap": "Recuerda el orden de catch, PECS en genéricos y qué checked exceptions se pueden ampliar al sobrescribir."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Cuál implementación mantiene orden de inserción?",
-    "code": null,
-    "options": {
-      "A": "HashMap",
-      "B": "TreeMap",
-      "C": "LinkedHashMap",
-      "D": "Hashtable"
-    },
-    "correct": "C",
-    "why": "`LinkedHashMap` conserva el orden de inserción.",
-    "explanation": "`LinkedHashMap` conserva el orden de inserción.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Cuál implementación ordena por orden natural?",
-    "code": null,
-    "options": {
-      "A": "HashSet",
-      "B": "TreeSet",
-      "C": "LinkedHashSet",
-      "D": "ArrayList"
-    },
-    "correct": "B",
-    "why": "`TreeSet` mantiene orden natural o el definido por su `Comparator`.",
-    "explanation": "`TreeSet` mantiene orden natural o el definido por su `Comparator`.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "Set:",
-    "code": null,
-    "options": {
-      "A": "Permite duplicados",
-      "B": "No permite duplicados",
-      "C": "Siempre está ordenado",
-      "D": "Siempre es mutable"
-    },
-    "correct": "B",
-    "why": "La propiedad base de un `Set` es no permitir duplicados.",
-    "explanation": "La propiedad base de un `Set` es no permitir duplicados.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Medio",
-    "question": "Map.of(...):",
-    "code": null,
-    "options": {
-      "A": "Permite null",
-      "B": "Es mutable",
-      "C": "No permite null",
-      "D": "Devuelve HashMap"
-    },
-    "correct": "C",
-    "why": "`Map.of()` crea un mapa inmutable que no permite claves ni valores `null`.",
-    "explanation": "`Map.of()` crea un mapa inmutable que no permite claves ni valores `null`.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "var list = new ArrayList<>(List.of(10,20,30));\nlist.remove(1);\nSystem.out.println(list);",
-    "options": {
-      "A": "[10, 20]",
-      "B": "[20, 30]",
-      "C": "[10, 30]",
-      "D": "Error"
-    },
-    "correct": "C",
-    "why": "`remove(1)` elimina por índice, no por valor.",
-    "explanation": "`remove(1)` elimina por índice, no por valor.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Medio",
-    "question": "¿Qué hace esto?",
-    "code": "var list = new ArrayList<>(List.of(10,20,30));\nlist.remove(Integer.valueOf(20));\nSystem.out.println(list);",
-    "options": {
-      "A": "Elimina índice 20",
-      "B": "Elimina valor 20",
-      "C": "No compila",
-      "D": "Vacía la lista"
-    },
-    "correct": "B",
-    "why": "Al pasar un `Integer`, se usa la sobrecarga que elimina por valor.",
-    "explanation": "Al pasar un `Integer`, se usa la sobrecarga que elimina por valor.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Medio",
-    "question": "Arrays.asList(\"a\",\"b\") devuelve:",
-    "code": null,
-    "options": {
-      "A": "Lista totalmente mutable",
-      "B": "Lista de tamaño fijo",
-      "C": "Set",
-      "D": "Queue"
-    },
-    "correct": "B",
-    "why": "La lista resultante no permite cambiar su tamaño.",
-    "explanation": "La lista resultante no permite cambiar su tamaño.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Fácil",
-    "question": "List.copyOf(list) devuelve:",
-    "code": null,
-    "options": {
-      "A": "Una vista mutable",
-      "B": "Una copia no modificable",
-      "C": "La misma referencia siempre",
-      "D": "Un ArrayList"
-    },
-    "correct": "B",
-    "why": "`copyOf` devuelve una colección no modificable.",
-    "explanation": "`copyOf` devuelve una colección no modificable.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Medio",
-    "question": "Modificar un ArrayList mientras lo recorres con for-each puede causar:",
-    "code": null,
-    "options": {
-      "A": "DateTimeException",
-      "B": "ConcurrentModificationException",
-      "C": "ClassCastException",
-      "D": "EOFException"
-    },
-    "correct": "B",
-    "why": "La iteración fail-fast detecta modificaciones estructurales y puede lanzar `ConcurrentModificationException`.",
-    "explanation": "La iteración fail-fast detecta modificaciones estructurales y puede lanzar `ConcurrentModificationException`.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Arrays & Collections",
-    "difficulty": "Medio",
-    "question": "Para que HashSet trate dos objetos como duplicados, debe respetarse sobre todo:",
-    "code": null,
-    "options": {
-      "A": "toString()",
-      "B": "compareTo()",
-      "C": "equals() y hashCode()",
-      "D": "clone()"
-    },
-    "correct": "C",
-    "why": "Las colecciones hash dependen del contrato consistente entre `equals()` y `hashCode()`.",
-    "explanation": "Las colecciones hash dependen del contrato consistente entre `equals()` y `hashCode()`.",
-    "trap": "Cuidado con remove por índice vs remove por valor, colecciones inmutables y contratos de equals/hashCode."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Fácil",
-    "question": "Objects.equals(a, b):",
-    "code": null,
-    "options": {
-      "A": "Falla si uno es null",
-      "B": "Es null-safe",
-      "C": "Solo funciona con Strings",
-      "D": "Compara referencias únicamente"
-    },
-    "correct": "B",
-    "why": "`Objects.equals()` maneja `null` de forma segura.",
-    "explanation": "`Objects.equals()` maneja `null` de forma segura.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué interfaz funcional recibe un valor y devuelve boolean?",
-    "code": null,
-    "options": {
-      "A": "Consumer<T>",
-      "B": "Supplier<T>",
-      "C": "Predicate<T>",
-      "D": "Function<T,R>"
-    },
-    "correct": "C",
-    "why": "`Predicate<T>` representa una prueba que devuelve `boolean`.",
-    "explanation": "`Predicate<T>` representa una prueba que devuelve `boolean`.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué interfaz funcional recibe un valor y no devuelve nada?",
-    "code": null,
-    "options": {
-      "A": "Consumer<T>",
-      "B": "Predicate<T>",
-      "C": "Function<T,R>",
-      "D": "Supplier<T>"
-    },
-    "correct": "A",
-    "why": "`Consumer<T>` consume un argumento y devuelve `void`.",
-    "explanation": "`Consumer<T>` consume un argumento y devuelve `void`.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué interfaz funcional no recibe argumentos y devuelve un valor?",
-    "code": null,
-    "options": {
-      "A": "Consumer<T>",
-      "B": "Predicate<T>",
-      "C": "Supplier<T>",
-      "D": "UnaryOperator<T>"
-    },
-    "correct": "C",
-    "why": "`Supplier<T>` no recibe argumentos y produce un valor.",
-    "explanation": "`Supplier<T>` no recibe argumentos y produce un valor.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué interfaz funcional transforma un tipo en otro?",
-    "code": null,
-    "options": {
-      "A": "BiConsumer<T,U>",
-      "B": "Function<T,R>",
-      "C": "Predicate<T>",
-      "D": "Supplier<T>"
-    },
-    "correct": "B",
-    "why": "`Function<T,R>` transforma un valor de tipo `T` en otro de tipo `R`.",
-    "explanation": "`Function<T,R>` transforma un valor de tipo `T` en otro de tipo `R`.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Medio",
-    "question": "¿Cuál lambda es válida para Predicate<String>?",
-    "code": null,
-    "options": {
-      "A": "s -> s.length()",
-      "B": "s -> s.isEmpty()",
-      "C": "s -> {}",
-      "D": "() -> true"
-    },
-    "correct": "B",
-    "why": "`Predicate<String>` debe devolver un `boolean`.",
-    "explanation": "`Predicate<String>` debe devolver un `boolean`.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Difícil",
-    "question": "¿Qué pasa aquí?",
-    "code": "BiFunction<Integer,Integer,Integer> f = (var a, b) -> a + b;",
-    "options": {
-      "A": "Compila",
-      "B": "No compila",
-      "C": "Lanza excepción",
-      "D": "f es null"
-    },
-    "correct": "B",
-    "why": "En parámetros lambda, si usas `var` en uno debes usarlo en todos.",
-    "explanation": "En parámetros lambda, si usas `var` en uno debes usarlo en todos.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Cuál es una referencia a método válida?",
-    "code": null,
-    "options": {
-      "A": "System.out.println",
-      "B": "System.out::println",
-      "C": "println::System.out",
-      "D": "::println"
-    },
-    "correct": "B",
-    "why": "La sintaxis correcta de method reference usa `::` entre receptor y método.",
-    "explanation": "La sintaxis correcta de method reference usa `::` entre receptor y método.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué hace map() en un stream?",
-    "code": null,
-    "options": {
-      "A": "Filtra",
-      "B": "Convierte cada elemento",
-      "C": "Cuenta",
-      "D": "Cierra el stream"
-    },
-    "correct": "B",
-    "why": "`map()` transforma cada elemento del stream.",
-    "explanation": "`map()` transforma cada elemento del stream.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Medio",
-    "question": "¿Qué hace flatMap()?",
-    "code": null,
-    "options": {
-      "A": "Ordena",
-      "B": "Aplana estructuras anidadas",
-      "C": "Cuenta duplicados",
-      "D": "Convierte stream en lista"
-    },
-    "correct": "B",
-    "why": "`flatMap()` aplana streams anidados en uno solo.",
-    "explanation": "`flatMap()` aplana streams anidados en uno solo.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Cuál es operación terminal?",
-    "code": null,
-    "options": {
-      "A": "filter()",
-      "B": "map()",
-      "C": "count()",
-      "D": "peek()"
-    },
-    "correct": "C",
-    "why": "`count()` consume el stream y devuelve un resultado final.",
-    "explanation": "`count()` consume el stream y devuelve un resultado final.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Cuál es operación intermedia?",
-    "code": null,
-    "options": {
-      "A": "forEach()",
-      "B": "count()",
-      "C": "collect()",
-      "D": "filter()"
-    },
-    "correct": "D",
-    "why": "`filter()` devuelve otro stream y por eso es intermedia.",
-    "explanation": "`filter()` devuelve otro stream y por eso es intermedia.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué pasa con un stream después de una operación terminal?",
-    "code": null,
-    "options": {
-      "A": "Se puede reutilizar",
-      "B": "No debe reutilizarse",
-      "C": "Se reinicia",
-      "D": "Se vuelve lista"
-    },
-    "correct": "B",
-    "why": "Un stream queda consumido después de una operación terminal.",
-    "explanation": "Un stream queda consumido después de una operación terminal.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Medio",
-    "question": "¿Qué imprime?",
-    "code": "long c = Stream.of(\"Ana\",\"Luis\",\"Eva\")\n    .filter(s -> s.length() == 3)\n    .count();\nSystem.out.println(c);",
-    "options": {
-      "A": "1",
-      "B": "2",
-      "C": "3",
-      "D": "0"
-    },
-    "correct": "C",
-    "why": "Los tres elementos tienen longitud 3.",
-    "explanation": "Los tres elementos tienen longitud 3.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "int sum = java.util.stream.IntStream.range(1,4).sum();\nSystem.out.println(sum);",
-    "options": {
-      "A": "3",
-      "B": "4",
-      "C": "5",
-      "D": "6"
-    },
-    "correct": "D",
-    "why": "`range(1,4)` produce 1, 2 y 3; la suma es 6.",
-    "explanation": "`range(1,4)` produce 1, 2 y 3; la suma es 6.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Lambdas & Streams",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "int sum = Stream.of(1,2,3).reduce(0, Integer::sum);\nSystem.out.println(sum);",
-    "options": {
-      "A": "3",
-      "B": "5",
-      "C": "6",
-      "D": "0"
-    },
-    "correct": "C",
-    "why": "`reduce(0, Integer::sum)` suma 1 + 2 + 3 empezando en 0.",
-    "explanation": "`reduce(0, Integer::sum)` suma 1 + 2 + 3 empezando en 0.",
-    "trap": "No confundas operaciones intermedias con terminales ni el contrato de cada interfaz funcional."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Fácil",
-    "question": "Optional.of(null):",
-    "code": null,
-    "options": {
-      "A": "Devuelve vacío",
-      "B": "Devuelve null",
-      "C": "Lanza NullPointerException",
-      "D": "No compila"
-    },
-    "correct": "C",
-    "why": "`Optional.of()` no acepta `null`.",
-    "explanation": "`Optional.of()` no acepta `null`.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Fácil",
-    "question": "Optional.ofNullable(null):",
-    "code": null,
-    "options": {
-      "A": "Lanza excepción",
-      "B": "Devuelve Optional.empty()",
-      "C": "Devuelve null",
-      "D": "No compila"
-    },
-    "correct": "B",
-    "why": "`ofNullable(null)` produce un `Optional` vacío.",
-    "explanation": "`ofNullable(null)` produce un `Optional` vacío.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Medio",
-    "question": "¿Cuál se evalúa de forma perezosa?",
-    "code": null,
-    "options": {
-      "A": "orElse(...)",
-      "B": "orElseGet(...)",
-      "C": "Ambos igual",
-      "D": "Ninguno"
-    },
-    "correct": "B",
-    "why": "`orElseGet()` ejecuta el supplier solo si hace falta.",
-    "explanation": "`orElseGet()` ejecuta el supplier solo si hace falta.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Medio",
-    "question": "¿Qué imprime?",
-    "code": "System.out.println(\"ab\" == \"a\" + \"b\");",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error",
-      "D": "null"
-    },
-    "correct": "A",
-    "why": "La concatenación de literales se resuelve en compilación y ambas referencias apuntan al mismo string internado.",
-    "explanation": "La concatenación de literales se resuelve en compilación y ambas referencias apuntan al mismo string internado.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Medio",
-    "question": "¿Qué imprime?",
-    "code": "System.out.println(new String(\"ab\") == \"ab\");",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error",
-      "D": "null"
-    },
-    "correct": "B",
-    "why": "`new String(\"ab\")` crea un objeto distinto en heap y `==` compara referencia.",
-    "explanation": "`new String(\"ab\")` crea un objeto distinto en heap y `==` compara referencia.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "LocalDate es:",
-    "code": null,
-    "options": {
-      "A": "Mutable",
-      "B": "Inmutable",
-      "C": "Un subtipo de Date",
-      "D": "Abstracta"
-    },
-    "correct": "B",
-    "why": "`LocalDate` es inmutable, como la mayoría de la API `java.time`.",
-    "explanation": "`LocalDate` es inmutable, como la mayoría de la API `java.time`.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Medio",
-    "question": "¿Qué pasa aquí?",
-    "code": "var d = LocalDate.of(2026, 2, 29);\nSystem.out.println(d);",
-    "options": {
-      "A": "Imprime 2026-02-29",
-      "B": "Ajusta a marzo",
-      "C": "Falla en runtime",
-      "D": "No compila"
-    },
-    "correct": "C",
-    "why": "La fecha es inválida y `LocalDate.of()` lanza `DateTimeException` en ejecución.",
-    "explanation": "La fecha es inválida y `LocalDate.of()` lanza `DateTimeException` en ejecución.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "LocalDateTime:",
-    "code": null,
-    "options": {
-      "A": "Incluye zona horaria",
-      "B": "No incluye zona horaria",
-      "C": "Es mutable",
-      "D": "Es deprecada"
-    },
-    "correct": "B",
-    "why": "`LocalDateTime` no guarda zona ni offset.",
-    "explanation": "`LocalDateTime` no guarda zona ni offset.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "var d = LocalDate.of(2026, 3, 30).plusDays(1);\nSystem.out.println(d);",
-    "options": {
-      "A": "2026-03-30",
-      "B": "2026-03-31",
-      "C": "2026-04-01",
-      "D": "Error"
-    },
-    "correct": "B",
-    "why": "Sumar un día a 2026-03-30 da 2026-03-31.",
-    "explanation": "Sumar un día a 2026-03-30 da 2026-03-31.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "¿Cuál archivo declara un módulo?",
-    "code": null,
-    "options": {
-      "A": "module.java",
-      "B": "module-info.java",
-      "C": "module-config.java",
-      "D": "info-module.java"
-    },
-    "correct": "B",
-    "why": "El descriptor de módulo en Java se llama `module-info.java`.",
-    "explanation": "El descriptor de módulo en Java se llama `module-info.java`.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "En module-info.java, requires sirve para:",
-    "code": null,
-    "options": {
-      "A": "Exportar un package",
-      "B": "Declarar dependencia de otro módulo",
-      "C": "Ocultar una clase",
-      "D": "Crear un package"
-    },
-    "correct": "B",
-    "why": "`requires` declara que tu módulo depende de otro.",
-    "explanation": "`requires` declara que tu módulo depende de otro.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Fácil",
-    "question": "En module-info.java, exports sirve para:",
-    "code": null,
-    "options": {
-      "A": "Declarar dependencia",
-      "B": "Exponer un package",
-      "C": "Crear un módulo automático",
-      "D": "Importar clases"
-    },
-    "correct": "B",
-    "why": "`exports` hace visible un package a otros módulos.",
-    "explanation": "`exports` hace visible un package a otros módulos.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Medio",
-    "question": "En Java 21, record patterns es:",
-    "code": null,
-    "options": {
-      "A": "Preview",
-      "B": "Permanente",
-      "C": "Eliminado",
-      "D": "Solo para módulos"
-    },
-    "correct": "B",
-    "why": "En Java 21 los record patterns ya forman parte definitiva del lenguaje.",
-    "explanation": "En Java 21 los record patterns ya forman parte definitiva del lenguaje.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Medio",
-    "question": "En Java 21, pattern matching for switch es:",
-    "code": null,
-    "options": {
-      "A": "Preview",
-      "B": "Permanente",
-      "C": "Eliminado",
-      "D": "Solo para interfaces"
-    },
-    "correct": "B",
-    "why": "El pattern matching para `switch` quedó final en Java 21.",
-    "explanation": "El pattern matching para `switch` quedó final en Java 21.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Medio",
-    "question": "En Java 21, String Templates es:",
-    "code": null,
-    "options": {
-      "A": "Permanente",
-      "B": "Preview",
-      "C": "Eliminado",
-      "D": "Obligatorio"
-    },
-    "correct": "B",
-    "why": "String Templates fue una característica preview en Java 21.",
-    "explanation": "String Templates fue una característica preview en Java 21.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Difícil",
-    "question": "¿Qué puede hacer un switch con pattern matching respecto a null?",
-    "code": null,
-    "options": {
-      "A": "Nunca manejar null",
-      "B": "Manejar null con case null",
-      "C": "Solo lanzar NPE",
-      "D": "Solo en enums"
-    },
-    "correct": "B",
-    "why": "Puedes cubrir explícitamente `null` con `case null`.",
-    "explanation": "Puedes cubrir explícitamente `null` con `case null`.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Medio",
-    "question": "Si un switch expression ya es exhaustivo, default:",
-    "code": null,
-    "options": {
-      "A": "Siempre es obligatorio",
-      "B": "Nunca se permite",
-      "C": "Puede no ser necesario",
-      "D": "Solo sirve con String"
-    },
-    "correct": "C",
-    "why": "Si el compilador prueba exhaustividad, `default` puede omitirse.",
-    "explanation": "Si el compilador prueba exhaustividad, `default` puede omitirse.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Date, Time, Modules & Java 21 Features",
-    "difficulty": "Difícil",
-    "question": "¿Qué significa que una jerarquía sellada sea exhaustiva en switch?",
-    "code": null,
-    "options": {
-      "A": "Que usa default",
-      "B": "Que cubre todos los subtipos permitidos",
-      "C": "Que todos son abstract",
-      "D": "Que no usa patterns"
-    },
-    "correct": "B",
-    "why": "Un switch exhaustivo cubre todos los subtipos permitidos de la jerarquía sellada.",
-    "explanation": "Un switch exhaustivo cubre todos los subtipos permitidos de la jerarquía sellada.",
-    "trap": "En java.time casi todo es inmutable; en módulos, imports no existe y requires/exports sí."
-  },
-  {
-    "topic": "Concurrency & Threads",
-    "difficulty": "Fácil",
-    "question": "¿Qué hace Thread.start()?",
-    "code": null,
-    "options": {
-      "A": "Ejecuta run() en el hilo actual",
-      "B": "Crea un nuevo hilo de ejecución",
-      "C": "Compila más rápido",
-      "D": "Pausa el programa"
-    },
-    "correct": "B",
-    "why": "`start()` crea un nuevo hilo y ese hilo ejecuta `run()`.",
-    "explanation": "`start()` crea un nuevo hilo y ese hilo ejecuta `run()`.",
-    "trap": "start() no es run(); static synchronized bloquea sobre la clase y Future.get() puede bloquear."
-  },
-  {
-    "topic": "Concurrency & Threads",
-    "difficulty": "Fácil",
-    "question": "¿Qué hace llamar run() directamente en un Thread?",
-    "code": "Thread t = new Thread(() -> System.out.println(\"run\"));\nt.run();",
-    "options": {
-      "A": "Crea un nuevo hilo",
-      "B": "Ejecuta el código en el hilo actual",
-      "C": "Lanza excepción",
-      "D": "Termina la JVM"
-    },
-    "correct": "B",
-    "why": "Llamar `run()` como método normal no crea un hilo nuevo.",
-    "explanation": "Llamar `run()` como método normal no crea un hilo nuevo.",
-    "trap": "start() no es run(); static synchronized bloquea sobre la clase y Future.get() puede bloquear."
-  },
-  {
-    "topic": "Concurrency & Threads",
-    "difficulty": "Fácil",
-    "question": "Callable<V> se diferencia de Runnable en que:",
-    "code": null,
-    "options": {
-      "A": "Puede devolver valor",
-      "B": "No puede lanzar excepciones",
-      "C": "Solo se usa con records",
-      "D": "Es una clase, no interfaz"
-    },
-    "correct": "A",
-    "why": "`Callable<V>` devuelve un valor y puede lanzar excepciones checked.",
-    "explanation": "`Callable<V>` devuelve un valor y puede lanzar excepciones checked.",
-    "trap": "start() no es run(); static synchronized bloquea sobre la clase y Future.get() puede bloquear."
-  },
-  {
-    "topic": "Concurrency & Threads",
-    "difficulty": "Fácil",
-    "question": "Future.get():",
-    "code": null,
-    "options": {
-      "A": "Nunca bloquea",
-      "B": "Espera el resultado si hace falta",
-      "C": "Solo funciona con streams",
-      "D": "Devuelve void"
-    },
-    "correct": "B",
-    "why": "`Future.get()` puede bloquear hasta que el resultado esté listo.",
-    "explanation": "`Future.get()` puede bloquear hasta que el resultado esté listo.",
-    "trap": "start() no es run(); static synchronized bloquea sobre la clase y Future.get() puede bloquear."
-  },
-  {
-    "topic": "Concurrency & Threads",
-    "difficulty": "Difícil",
-    "question": "Un método static synchronized bloquea sobre:",
-    "code": null,
-    "options": {
-      "A": "this",
-      "B": "El objeto pasado por parámetro",
-      "C": "La instancia del hilo",
-      "D": "El objeto Class"
-    },
-    "correct": "D",
-    "why": "Un método `static synchronized` usa el monitor del objeto `Class`.",
-    "explanation": "Un método `static synchronized` usa el monitor del objeto `Class`.",
-    "trap": "start() no es run(); static synchronized bloquea sobre la clase y Future.get() puede bloquear."
-  },
-  {
-    "topic": "Core Java APIs (String, StringBuilder)",
-    "difficulty": "Medio",
-    "question": "¿Qué imprime?",
-    "code": "StringBuilder a = new StringBuilder(\"x\");\nStringBuilder b = new StringBuilder(\"x\");\nSystem.out.println(a.equals(b));",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error",
-      "D": "null"
-    },
-    "correct": "B",
-    "why": "`StringBuilder` no sobrescribe `equals()`, así que compara referencias.",
-    "explanation": "`StringBuilder` no sobrescribe `equals()`, así que compara referencias.",
-    "trap": "Distingue siempre entre tipos mutables e inmutables, y entre comparación por contenido y por referencia."
-  },
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la forma correcta de crear un Virtual Thread en Java 21?",
+    "code":null,
+    "options":{
+      "A":"Thread t = new Thread(() -> System.out.println(\"Virtual!\"), Thread.VIRTUAL);",
+      "B":"Thread t = Thread.ofVirtual().start(() -> System.out.println(\"Virtual!\"));",
+      "C":"Thread t = Executors.newVirtualThread(() -> System.out.println(\"Virtual!\"));",
+      "D":"Thread t = new VirtualThread(() -> System.out.println(\"Virtual!\"));"
+    },
+    "correct":"B",
+    "explanation":"En Java 21, los Virtual Threads se crean con Thread.ofVirtual().start(Runnable) o Thread.ofVirtual().unstarted(Runnable). También existe Thread.startVirtualThread(Runnable). La opción A no compila, C y D no existen.",
+    "trap":"Thread.ofVirtual() retorna un Thread.Builder, no un Thread directamente. Puedes encadenar .start() para iniciarlo inmediatamente o .unstarted() para iniciarlo después."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál de las siguientes afirmaciones sobre Virtual Threads en Java 21 es CORRECTA?",
+    "code":null,
+    "options":{
+      "A":"Los Virtual Threads son más rápidos que los Platform Threads para tareas de CPU intensiva",
+      "B":"Los Virtual Threads son montados sobre Platform Threads (carrier threads) y se desmontan en operaciones bloqueantes",
+      "C":"Un Virtual Thread siempre corresponde a un hilo del sistema operativo dedicado",
+      "D":"Los Virtual Threads no pueden usar synchronized ni locks"
+    },
+    "correct":"B",
+    "explanation":"Los Virtual Threads son montados sobre Platform Threads (carrier threads) del ForkJoinPool. Cuando el Virtual Thread hace una operación bloqueante (I/O, sleep, etc.), se desmonta del carrier thread, que puede ejecutar otro Virtual Thread. Son millones de VT posibles sobre pocos carrier threads.",
+    "trap":"Los Virtual Threads son ideales para tareas I/O-bound, NO para CPU-bound. Para CPU-bound los Platform Threads son mejores. synchronized funciona pero puede causar 'thread pinning' (el carrier thread queda bloqueado)."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es el ExecutorService correcto para usar con Virtual Threads en Java 21?",
+    "code":"// ¿Cuál es la forma recomendada?\ntry (var executor = ???) {\n    for (int i = 0; i < 1_000_000; i++) {\n        int id = i;\n        executor.submit(() -> process(id));\n    }\n}",
+    "options":{
+      "A":"Executors.newFixedThreadPool(1_000_000)","B":"Executors.newCachedThreadPool()","C":"Executors.newVirtualThreadPerTaskExecutor()","D":"Executors.newSingleThreadExecutor()"
+    },
+    "correct":"C",
+    "explanation":"Executors.newVirtualThreadPerTaskExecutor() crea un ExecutorService que crea un nuevo Virtual Thread para cada tarea. Perfectamente válido crear un millón de Virtual Threads porque son livianos (KB, no MB). Implementa AutoCloseable, lo que permite usarlo en try-with-resources.",
+    "trap":"newVirtualThreadPerTaskExecutor() crea UN Virtual Thread POR TAREA. A diferencia de un pool de Platform Threads, no necesitas limitar el número porque los VTs son extremadamente livianos."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Medio",
+    "question":"¿Qué nueva interfaz introdujo Java 21 para colecciones que tienen un orden de encuentro definido?",
+    "code":null,
+    "options":{
+      "A":"OrderedCollection","B":"SequencedCollection","C":"SortedCollection","D":"IndexedCollection"
+    },
+    "correct":"B",
+    "explanation":"Java 21 introdujo SequencedCollection (y SequencedSet, SequencedMap) para colecciones con orden definido. Provee métodos: getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), y reversed().",
+    "trap":"No confundas SequencedCollection con SortedSet/NavigableSet. SequencedCollection es sobre orden de encuentro (no necesariamente sorted). List, Deque, LinkedHashSet son SequencedCollection. HashSet NO."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la salida de este código usando la nueva API de Sequenced Collections de Java 21?",
+    "code":"import java.util.*;\npublic class Test {\n    public static void main(String[] args) {\n        List<String> list = new ArrayList<>(List.of(\"a\",\"b\",\"c\",\"d\"));\n        System.out.println(list.getFirst());\n        System.out.println(list.getLast());\n        list.addFirst(\"Z\");\n        System.out.println(list.getFirst());\n        System.out.println(list.reversed().getFirst());\n    }\n}",
+    "options":{
+      "A":"a d Z a","B":"a d Z d","C":"a d a d","D":"Error de compilación"
+    },
+    "correct":"B",
+    "explanation":"list.getFirst()='a', list.getLast()='d'. Después de addFirst('Z'), la lista es [Z,a,b,c,d], getFirst()='Z'. list.reversed() retorna una vista invertida [d,c,b,a,Z], getFirst()='d'.",
+    "trap":"reversed() retorna una VISTA de la lista en orden inverso, no una copia. Los cambios en la lista original se reflejan en la vista reversed() y viceversa."
+  },
+  {
+    "topic":"Pattern Matching for Switch (Java 21)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la salida de este código con Pattern Matching for Switch (estable en Java 21)?",
+    "code":"public class Test {\n    sealed interface Shape permits Circle, Rect, Triangle {}\n    record Circle(double r) implements Shape {}\n    record Rect(double w, double h) implements Shape {}\n    record Triangle(double b, double h) implements Shape {}\n\n    static String describe(Shape s) {\n        return switch (s) {\n            case Circle c when c.r() > 10 -> \"Large circle r=\" + c.r();\n            case Circle c -> \"Small circle r=\" + c.r();\n            case Rect r -> \"Rect \" + r.w() + \"x\" + r.h();\n            case Triangle t -> \"Triangle\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(describe(new Circle(5)));\n        System.out.println(describe(new Circle(15)));\n    }\n}",
+    "options":{
+      "A":"Large circle r=5.0 Small circle r=15.0","B":"Small circle r=5.0 Large circle r=15.0","C":"Small circle r=5.0 Small circle r=15.0","D":"Error de compilación"
+    },
+    "correct":"B",
+    "explanation":"El switch evalúa los cases en orden. Circle(5): first case: c.r()>10? No (5>10 false). Second case: Circle c → 'Small circle r=5.0'. Circle(15): first case: c.r()>10? Sí (15>10 true) → 'Large circle r=15.0'.",
+    "trap":"Los guarded patterns (when) en switch se evalúan en orden de declaración. Si la guard falla, continúa con el siguiente case. El switch con sealed interface es exhaustivo sin default."
+  },
+  {
+    "topic":"Pattern Matching for Switch (Java 21)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la salida de este código con case null en switch (Java 21)?",
+    "code":"public class Test {\n    public static void main(String[] args) {\n        Object obj = null;\n        String result = switch (obj) {\n            case null -> \"es null\";\n            case String s -> \"String: \" + s;\n            case Integer i -> \"Integer: \" + i;\n            default -> \"Otro: \" + obj;\n        };\n        System.out.println(result);\n    }\n}",
+    "options":{
+      "A":"NullPointerException","B":"es null","C":"Otro: null","D":"Error de compilación"
+    },
+    "correct":"B",
+    "explanation":"En Java 21, el switch expression soporta 'case null' explícitamente. Cuando obj es null y existe 'case null', se maneja sin lanzar NullPointerException. Sin 'case null', el switch con null siempre lanzaría NPE.",
+    "trap":"Sin 'case null', un switch con valor null SIEMPRE lanza NullPointerException, incluso si hay un 'default'. Con 'case null' (Java 21 estable), null se maneja explícitamente antes del default."
+  },
+  {
+    "topic":"Record Patterns (Java 21)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la salida de este código con Record Patterns (estable en Java 21)?",
+    "code":"public class Test {\n    record Point(int x, int y) {}\n    record Line(Point start, Point end) {}\n\n    static String analyze(Object o) {\n        return switch (o) {\n            case Line(Point(int x1, int y1), Point(int x2, int y2))\n                when x1 == x2 -> \"Vertical line at x=\" + x1;\n            case Line(Point(int x1, int y1), Point(int x2, int y2))\n                when y1 == y2 -> \"Horizontal line at y=\" + y1;\n            case Line l -> \"Diagonal line\";\n            default -> \"Not a line\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(analyze(new Line(new Point(3,0), new Point(3,5))));\n        System.out.println(analyze(new Line(new Point(0,2), new Point(4,2))));\n    }\n}",
+    "options":{
+      "A":"Diagonal line Horizontal line at y=2","B":"Vertical line at x=3 Horizontal line at y=2","C":"Vertical line at x=3 Diagonal line","D":"Error de compilación"
+    },
+    "correct":"B",
+    "explanation":"Record Patterns permiten desestructurar Records en switch/instanceof. Line(Point(3,0), Point(3,5)): x1=3, y1=0, x2=3, y2=5. x1==x2 (3==3) → 'Vertical line at x=3'. Line(Point(0,2), Point(4,2)): x1=0, x2=4 (distinto), y1=2, y2=2 → 'Horizontal line at y=2'.",
+    "trap":"Los Record Patterns pueden anidarse (nested patterns). Los componentes del Record se extraen directamente en las variables del pattern. Estable desde Java 21 (preview en 19/20)."
+  },
   {
-    "topic": "Records, Sealed Classes & Pattern Matching",
-    "difficulty": "Fácil",
-    "question": "¿Qué imprime?",
-    "code": "record Point(int x, int y) {}\nSystem.out.println(new Point(1,2).equals(new Point(1,2)));",
-    "options": {
-      "A": "true",
-      "B": "false",
-      "C": "Error",
-      "D": "null"
-    },
-    "correct": "A",
-    "why": "Los records generan `equals()` basado en componentes, no en referencia.",
-    "explanation": "Los records generan `equals()` basado en componentes, no en referencia.",
-    "trap": "Java 21 pregunta mucho record patterns, sealed hierarchies y alcance de variables de pattern."
+    "topic":"Record Patterns (Java 21)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la salida de este código con instanceof y Record Patterns?",
+    "code":"public class Test {\n    record Pair<A, B>(A first, B second) {}\n\n    public static void main(String[] args) {\n        Object o = new Pair<>(\"hello\", 42);\n        if (o instanceof Pair(String s, Integer i)) {\n            System.out.println(s.toUpperCase() + \" - \" + (i * 2));\n        } else {\n            System.out.println(\"No match\");\n        }\n    }\n}",
+    "options":{
+      "A":"HELLO - 84","B":"hello - 42","C":"No match","D":"Error de compilación"
+    },
+    "correct":"A",
+    "explanation":"El instanceof con Record Pattern desestructura el Record: verifica que o sea Pair con first de tipo String y second de tipo Integer. Si coincide, asigna s='hello' e i=42. s.toUpperCase()='HELLO', i*2=84.",
+    "trap":"El Record Pattern en instanceof realiza TANTO la verificación de tipo COMO la extracción de componentes en una sola expresión. Los tipos de los componentes también se verifican."
+  },
+  {
+    "topic":"String Templates (Java 21 Preview)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la sintaxis correcta de un String Template con el procesador STR en Java 21 (preview)?",
+    "code":"// Dado:\nString name = \"Java\";\nint version = 21;\n// ¿Cuál es el template correcto?",
+    "options":{
+      "A":"STR.\"Hola \\{name} versión \\{version}\"","B":"STR:\"Hola ${name} versión ${version}\"","C":"f\"Hola {name} versión {version}\"","D":"\"Hola \" + name + \" versión \" + version"
+    },
+    "correct":"A",
+    "explanation":"Los String Templates (JEP 430, preview en Java 21) usan la sintaxis: PROCESADOR.\"texto \\{expresión}\". STR es el procesador estándar que interpola strings. Las expresiones van entre \\{ y }. Esta es una feature preview en Java 21.",
+    "trap":"String Templates son PREVIEW en Java 21 y necesitan --enable-preview. La sintaxis usa \\{expr} NO ${expr} (como en otros lenguajes). STR, FMT y RAW son los procesadores incluidos."
+  },
+  {
+    "topic":"Unnamed Classes & Instance Main (Java 21 Preview)",
+    "difficulty":"Medio",
+    "question":"¿Qué característica preview de Java 21 permite escribir el siguiente código sin declarar explícitamente la clase?",
+    "code":"// Archivo: Hello.java\nvoid main() {\n    System.out.println(\"Hello, Java 21!\");\n}",
+    "options":{
+      "A":"Anonymous Classes","B":"Unnamed Classes and Instance Main Methods (JEP 445)","C":"Compact Programs","D":"Script Mode"},"correct":"B",
+    "explanation":"JEP 445 (preview Java 21) introduce Unnamed Classes e Instance Main Methods. Permite omitir la declaración de clase pública y usar void main() sin static, perfecto para programas simples y aprendizaje. El compilador infiere la clase envolvente.",
+    "trap":"Esta es una feature PREVIEW. En producción se sigue requiriendo: public class NombreArchivo { public static void main(String[] args) { } }. Está pensada para reducir la curva de aprendizaje de Java."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál de las siguientes situaciones causa 'thread pinning' en Virtual Threads?",
+    "code":null,
+    "options":{
+      "A":"Usar ReentrantLock en un Virtual Thread","B":"Usar synchronized en un Virtual Thread que bloquea en I/O","C":"Crear más de 10,000 Virtual Threads simultáneos","D":"Llamar a Thread.sleep() en un Virtual Thread"
+    },
+    "correct":"B",
+    "explanation":"El 'thread pinning' ocurre cuando un Virtual Thread no puede desmontarse de su carrier thread. Sucede principalmente con: (1) código dentro de bloques synchronized y (2) llamadas a métodos nativos. Thread.sleep() y ReentrantLock sí permiten desmontar el VT.",
+    "trap":"synchronized causa thread pinning porque los JVM monitors están ligados a Platform Threads. La solución para código I/O-bound es usar ReentrantLock en lugar de synchronized. Thread.sleep() y java.util.concurrent.locks SÍ funcionan correctamente con VTs."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Medio",
+    "question":"¿Cuál de las siguientes colecciones implementa SequencedSet en Java 21?",
+    "code":null,
+    "options":{
+      "A":"HashSet","B":"LinkedHashSet","C":"TreeSet","D":"Tanto LinkedHashSet como TreeSet"
+    },
+    "correct":"D",
+    "explanation":"SequencedSet es implementado por LinkedHashSet (orden de inserción) y TreeSet (orden natural/comparator). HashSet NO implementa SequencedSet porque no garantiza orden. SequencedSet extiende tanto SequencedCollection como Set.",
+    "trap":"LinkedHashSet mantiene orden de inserción. TreeSet mantiene orden natural o por Comparator. Ambos son SequencedSet. HashSet no tiene orden definido → NO implementa SequencedSet."
+  },
+  {
+    "topic":"Pattern Matching for Switch (Java 21)",
+    "difficulty":"Difícil",
+    "question":"¿Qué pasa al ejecutar este código con dominance checking en switch?",
+    "code":"public class Test {\n    static String check(Object o) {\n        return switch (o) {\n            case Integer i -> \"Integer: \" + i;\n            case Number n -> \"Number: \" + n; // ¿compila?\n            default -> \"Other\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(check(42));\n        System.out.println(check(3.14));\n    }\n}",
+    "options":{
+      "A":"Integer: 42 Number: 3.14","B":"Integer: 42 Other","C":"Error de compilación","D":"Number: 42 Number: 3.14"},"correct":"A",
+    "explanation":"El compilador aplica 'dominance checking': 'case Integer i' es más específico que 'case Number n', por lo que Integer va primero (correcto). Si fuera al revés (Number antes que Integer), daría error de compilación por dominance. check(42): Integer → 'Integer: 42'. check(3.14): Double, no es Integer, sí es Number → 'Number: 3.14'.",
+    "trap":"En switch con type patterns, un case más específico DEBE ir antes que uno más general. Si pones 'case Number n' antes de 'case Integer i', el compilador da error porque Integer es subclase de Number y el case Integer sería inalcanzable."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la diferencia principal entre Virtual Threads y Platform Threads en Java 21?",
+    "code":null,
+    "options":{
+      "A":"Los Virtual Threads no pueden tener nombre ni prioridad","B":"Los Virtual Threads son siempre daemon threads y tienen stack más pequeño","C":"Los Virtual Threads no soportan ThreadLocal","D":"Los Virtual Threads solo funcionan con ExecutorService"},"correct":"B",
+    "explanation":"Los Virtual Threads en Java 21 son SIEMPRE daemon threads (no evitan que la JVM termine). Su stack crece dinámicamente empezando pequeño (KBs vs MBs de Platform Threads). Sí soportan ThreadLocal (aunque con precaución). Pueden crearse directamente sin ExecutorService.",
+    "trap":"Virtual Threads son siempre daemon=true y NO pueden cambiarse a non-daemon. Si el main thread termina, los Virtual Threads también terminan. Para esperar su finalización usa join() o un ExecutorService con awaitTermination()."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Medio",
+    "question":"¿Qué retorna el método reversed() en una SequencedMap en Java 21?",
+    "code":"import java.util.*;\npublic class Test {\n    public static void main(String[] args) {\n        SequencedMap<String, Integer> map = new LinkedHashMap<>();\n        map.put(\"a\", 1);\n        map.put(\"b\", 2);\n        map.put(\"c\", 3);\n        SequencedMap<String, Integer> rev = map.reversed();\n        System.out.println(rev.firstEntry().getKey());\n        rev.put(\"d\", 4);\n        System.out.println(map.lastEntry().getKey());\n    }\n}",
+    "options":{
+      "A":"c d","B":"a a","C":"c a","D":"Error UnsupportedOperationException"},"correct":"A",
+    "explanation":"reversed() retorna una VISTA del mapa en orden inverso. rev.firstEntry() es la última entrada del mapa original: 'c'. rev.put('d',4) añade al inicio de la vista (=final del original). map.lastEntry() ahora es 'd'.",
+    "trap":"reversed() en SequencedMap/SequencedCollection retorna una VISTA (no copia). Las modificaciones en la vista se reflejan en el original y viceversa. addFirst en la vista equivale a addLast en el original."
+  },
+  {
+    "topic":"Record Patterns (Java 21)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la salida de este código con Record Patterns anidados en for-each?",
+    "code":"public class Test {\n    record Range(int min, int max) {}\n    record Segment(Range x, Range y) {}\n\n    public static void main(String[] args) {\n        var segments = java.util.List.of(\n            new Segment(new Range(0,10), new Range(0,5)),\n            new Segment(new Range(5,15), new Range(3,8))\n        );\n        for (Segment(Range(int x1, int x2), Range(int y1, int y2)) : segments) {\n            System.out.println((x2-x1) + \",\" + (y2-y1));\n        }\n    }\n}",
+    "options":{
+      "A":"10,5 10,5","B":"10,5 10,8","C":"0,0 5,3","D":"Error de compilación"},"correct":"A",
+    "explanation":"Record Patterns en for-each desestructuran cada Segment. Primero: Range(0,10) → x1=0,x2=10; Range(0,5) → y1=0,y2=5; x2-x1=10, y2-y1=5. Segundo: Range(5,15) → x1=5,x2=15; Range(3,8) → y1=3,y2=8; x2-x1=10, y2-y1=5.",
+    "trap":"Los Record Patterns funcionan en for-each (enhanced for) y en switch/instanceof. Los nombres de variables en el pattern se asignan en el orden de los componentes del record, no por nombre."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la salida de este código con Virtual Threads y join()?",
+    "code":"public class Test {\n    public static void main(String[] args) throws Exception {\n        Thread vt = Thread.ofVirtual().unstarted(() -> {\n            System.out.println(\"VT: \" + Thread.currentThread().isVirtual());\n        });\n        System.out.println(\"Before start\");\n        vt.start();\n        vt.join();\n        System.out.println(\"After join\");\n    }\n}",
+    "options":{
+      "A":"Before start After join VT: true","B":"Before start VT: true After join","C":"VT: true Before start After join","D":"Before start VT: false After join"},"correct":"B",
+    "explanation":"'Before start' se imprime antes de vt.start(). El Virtual Thread se inicia e imprime 'VT: true' (isVirtual() retorna true para Virtual Threads). vt.join() espera a que el VT termine. Luego se imprime 'After join'. El orden exacto entre 'Before start' e inicio del VT puede variar, pero vt.start() se llama antes de que el VT se ejecute.",
+    "trap":"Thread.currentThread().isVirtual() retorna true para Virtual Threads. Thread.ofVirtual().unstarted() crea el thread sin iniciarlo. Llama start() explícitamente para iniciarlo. join() funciona igual que con Platform Threads."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Difícil",
+    "question":"¿Cuál de las siguientes opciones describe correctamente la jerarquía de SequencedCollection en Java 21?",
+    "code":null,
+    "options":{
+      "A":"SequencedCollection extiende Iterable y añade getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), reversed()","B":"SequencedCollection extiende Collection y añade getFirst(), getLast(), addFirst(), addLast(), removeFirst(), removeLast(), reversed()","C":"SequencedCollection reemplaza a List y Deque completamente","D":"SequencedCollection es solo para listas enlazadas"},"correct":"B",
+    "explanation":"SequencedCollection extiende Collection e introduce métodos para acceder y modificar los extremos de la colección. SequencedSet extiende SequencedCollection y Set. SequencedMap tiene su propia jerarquía. No reemplaza List/Deque, los complementa añadiendo una interfaz común.",
+    "trap":"SequencedCollection es una NUEVA interfaz que se insertó en la jerarquía existente. List, Deque, LinkedHashSet, TreeSet ahora implementan SequencedCollection. Añade el método reversed() que retorna una vista en orden inverso."
+  },
+  {
+    "topic":"Pattern Matching for Switch (Java 21)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la diferencia entre 'case String s when s.isEmpty()' y 'case String s' en un switch Java 21?",
+    "code":null,
+    "options":{
+      "A":"No hay diferencia, son equivalentes","B":"'when' es una guard que aplica una condición adicional; si falla, continúa con el siguiente case","C":"'when' solo funciona con records, no con tipos primitivos o clases","D":"'when' convierte el switch en una expresión regex"},"correct":"B",
+    "explanation":"En Pattern Matching for switch, 'when' es una guard (condición de guardia) que se evalúa DESPUÉS de que el pattern hace match. Si la guard es false, el runtime continúa con el siguiente case. 'case String s when s.isEmpty()' solo coincide si el objeto es un String Y está vacío.",
+    "trap":"Si 'case String s when condition' falla la guard, NO lanza excepción ni va al default automáticamente: intenta el siguiente case. Si ningún case hace match (y no hay default), lanza MatchException en Java 21."
+  },
+  {
+    "topic":"Virtual Threads (Project Loom)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la forma correcta de migrar un servidor web de Platform Threads a Virtual Threads en Java 21?",
+    "code":"// Código ACTUAL (Platform Threads):\nExecutorService executor = Executors.newFixedThreadPool(200);\n// Por cada request:\nexecutor.submit(() -> handleRequest(request));",
+    "options":{
+      "A":"Cambiar a Executors.newFixedThreadPool(Integer.MAX_VALUE)","B":"Cambiar a Executors.newVirtualThreadPerTaskExecutor()","C":"Cambiar a Executors.newCachedThreadPool()","D":"No es necesario cambiar nada, el JVM optimiza automáticamente"},"correct":"B",
+    "explanation":"La migración más simple y efectiva es reemplazar el pool fijo de Platform Threads por Executors.newVirtualThreadPerTaskExecutor(). Crea un nuevo Virtual Thread por cada tarea, eliminando el límite artificial de 200 hilos. Los VTs se gestionan automáticamente por la JVM.",
+    "trap":"newCachedThreadPool() sigue usando Platform Threads. newFixedThreadPool(MAX_VALUE) crearía millones de Platform Threads (malo). La verdadera mejora viene de newVirtualThreadPerTaskExecutor() que usa VTs livianos (KB cada uno, no MB)."
+  },
+  {
+    "topic":"Record Patterns (Java 21)",
+    "difficulty":"Medio",
+    "question":"¿Cuál es la salida de este código con Record Pattern y variables sin nombre (Java 21 preview)?",
+    "code":"public class Test {\n    record Person(String name, int age, String city) {}\n\n    public static void main(String[] args) {\n        Object o = new Person(\"Ana\", 30, \"Madrid\");\n        // Solo me interesa el nombre\n        if (o instanceof Person(String name, _, _)) {\n            System.out.println(\"Name: \" + name);\n        }\n    }\n}",
+    "options":{
+      "A":"Name: Ana","B":"Error de compilación","C":"Name: Ana 30 Madrid","D":"NullPointerException"},"correct":"A",
+    "explanation":"Java 21 (preview) introduce Unnamed Patterns and Variables (JEP 443). El guion bajo _ en un Record Pattern indica que ese componente no te interesa y no necesitas variable. Solo extrae 'name'. En Java 21 preview: instanceof Person(String name, _, _) es válido.",
+    "trap":"Los Unnamed Patterns (_) son preview en Java 21 y requieren --enable-preview. Simplifican el código cuando solo necesitas algunos componentes del record. En versiones anteriores tenías que declarar una variable para cada componente."
+  },
+  {
+    "topic":"Sequenced Collections",
+    "difficulty":"Medio",
+    "question":"¿Cuál de las siguientes afirmaciones sobre SequencedMap en Java 21 es CORRECTA?",
+    "code":null,
+    "options":{
+      "A":"SequencedMap.firstEntry() retorna Optional<Map.Entry<K,V>>","B":"SequencedMap.firstEntry() retorna Map.Entry<K,V> y puede ser null si el mapa está vacío","C":"SequencedMap.firstEntry() lanza NoSuchElementException si el mapa está vacío","D":"SequencedMap.firstEntry() retorna la entrada con la clave más pequeña"},"correct":"B",
+    "explanation":"SequencedMap.firstEntry() y lastEntry() retornan Map.Entry<K,V> o null si el mapa está vacío (NO Optional). SequencedMap no garantiza orden por valor de clave (eso es NavigableMap), sino orden de encuentro (para LinkedHashMap es orden de inserción).",
+    "trap":"firstEntry() retorna null (no Optional, no excepción) si el mapa está vacío. Diferente a Optional de NavigableMap.firstEntry(). firstEntry() de SequencedMap es sobre ORDEN DE ENCUENTRO, no el valor de clave más pequeño."
+  },
+  {
+    "topic":"Pattern Matching for Switch (Java 21)",
+    "difficulty":"Difícil",
+    "question":"¿Cuál es la salida de este código con Pattern Matching y herencia en switch?",
+    "code":"public class Test {\n    static class Animal {}\n    static class Dog extends Animal {}\n    static class Poodle extends Dog {}\n\n    static String identify(Animal a) {\n        return switch (a) {\n            case Poodle p -> \"Poodle\";\n            case Dog d -> \"Dog\";\n            case Animal an -> \"Animal\";\n        };\n    }\n    public static void main(String[] args) {\n        System.out.println(identify(new Poodle()));\n        System.out.println(identify(new Dog()));\n        System.out.println(identify(new Animal()));\n    }\n}",
+    "options":{
+      "A":"Poodle Dog Animal","B":"Animal Dog Poodle","C":"Dog Dog Animal","D":"Error de compilación"},"correct":"A",
+    "explanation":"Los cases van de más específico a más general: Poodle antes que Dog, Dog antes que Animal. Poodle es Poodle → 'Poodle'. Dog (no Poodle) → 'Dog'. Animal (no Dog, no Poodle) → 'Animal'. El compilador verifica que no haya dominance issues.",
+    "trap":"En switch con type patterns, SIEMPRE ordena de más específico a más general. Si pusieras 'case Animal an' primero, sería inalcanzable y daría error de compilación por dominance checking."
   }
-]
+];
 
 // Add version field to all questions
 QUESTIONS_17.forEach(q => q.version = 17);
